@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README_CN.md @ commit ee83ead -->
+<!-- Synced with waffo-sdk/README_CN.md @ commit 1160423 -->
 
 <!-- Synced with waffo-sdk/README_CN.md -->
 
@@ -68,7 +68,7 @@
 ## 安装
 
 ```bash
-go get github.com/waffo-com/waffo-sdk/packages/waffo-go
+go get github.com/waffo-com/waffo-go
 ```
 
 ## 快速开始
@@ -79,8 +79,8 @@ go get github.com/waffo-com/waffo-sdk/packages/waffo-go
 package main
 
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go"
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/config"
+    "github.com/waffo-com/waffo-go"
+    "github.com/waffo-com/waffo-go/config"
 )
 
 func main() {
@@ -105,7 +105,7 @@ func main() {
 import (
     "context"
     "github.com/google/uuid"
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/types/order"
+    "github.com/waffo-com/waffo-go/types/order"
 )
 
 ctx := context.Background()
@@ -139,7 +139,7 @@ if resp.IsSuccess() {
 
 ```go
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/core"
+    "github.com/waffo-com/waffo-go/core"
 )
 
 handler := client.Webhook().
@@ -372,185 +372,11 @@ resp, err := client.Subscription().Cancel(ctx, &subscription.CancelSubscriptionP
 
 变更现有订阅到新的计划（升级或降级）。
 
-<!-- tabs:start -->
-#### **Node.js**
 
-```typescript
-import { randomUUID } from 'crypto';
-import { WaffoUnknownStatusError } from '@waffo/waffo-node';
-
-// 新订阅请求 ID
-const subscriptionRequest = randomUUID().replace(/-/g, '');
-const originSubscriptionRequest = 'original-subscription-request-id';
-
-try {
-  const response = await waffo.subscription().change({
-    subscriptionRequest,
-    originSubscriptionRequest,
-    remainingAmount: '50.00',  // 原订阅剩余价值
-    currency: 'HKD',
-    requestedAt: new Date().toISOString(),
-    notifyUrl: 'https://your-site.com/webhook/subscription',
-    productInfoList: [
-      {
-        description: '年度高级订阅',
-        periodType: 'YEAR',
-        periodInterval: '1',
-        amount: '999.00',
-      },
-    ],
-    userInfo: {
-      userId: 'user_123',
-      userEmail: 'user@example.com',
-    },
-    goodsInfo: {
-      goodsId: 'GOODS_PREMIUM',
-      goodsName: '高级计划',
-    },
-    paymentInfo: {
-      productName: 'SUBSCRIPTION',
-    },
-  });
-
-  if (response.isSuccess()) {
-    const data = response.getData();
-    console.log('变更状态:', data.subscriptionChangeStatus);
-    console.log('新订阅 ID:', data.subscriptionId);
-
-    // 处理不同状态
-    if (data.subscriptionChangeStatus === 'AUTHORIZATION_REQUIRED') {
-      // 用户需要授权
-      const action = JSON.parse(data.subscriptionAction);
-      console.log('重定向用户到:', action.webUrl);
-    } else if (data.subscriptionChangeStatus === 'SUCCESS') {
-      console.log('订阅升级成功');
-    }
-  }
-} catch (error) {
-  if (error instanceof WaffoUnknownStatusError) {
-    // 状态未知 - 不要假设失败！用户可能已完成支付
-    console.error('状态未知，需要查询确认:', error.message);
-
-    // 正确处理：调用查询 API 确认实际状态
-    const inquiryResponse = await waffo.subscription().changeInquiry({
-      subscriptionRequest,
-      originSubscriptionRequest,
-    });
-    // 或等待 Webhook 回调通知
-  } else {
-    throw error;
-  }
-}
-```
-
-#### **Java**
-
-```java
-import com.waffo.types.subscription.*;
-import com.waffo.types.iso.CurrencyCode;
-import java.util.Arrays;
-import java.util.UUID;
-
-// 新订阅请求 ID
-String subscriptionRequest = UUID.randomUUID().toString().replace("-", "");
-
-SubscriptionChangeParams params = SubscriptionChangeParams.builder()
-    .subscriptionRequest(subscriptionRequest)
-    .originSubscriptionRequest("original-subscription-request-id")
-    .remainingAmount("50.00")  // 原订阅剩余价值
-    .currency(CurrencyCode.HKD)
-    .requestedAt(Iso8601InstantSerializer.now())
-    .notifyUrl("https://your-site.com/webhook/subscription")
-    .productInfoList(Arrays.asList(
-        SubscriptionChangeProductInfo.builder()
-            .description("年度高级订阅")
-            .periodType(PeriodType.YEAR)
-            .periodInterval("1")
-            .amount("999.00")
-            .build()
-    ))
-    .userInfo(SubscriptionUserInfo.builder()
-        .userId("user_123")
-        .userEmail("user@example.com")
-        .build())
-    .goodsInfo(SubscriptionGoodsInfo.builder()
-        .goodsId("GOODS_PREMIUM")
-        .goodsName("高级计划")
-        .build())
-    .paymentInfo(SubscriptionPaymentInfo.builder()
-        .productName("SUBSCRIPTION")
-        .build())
-    .build();
-
-try {
-    ApiResponse<SubscriptionChangeData> response = waffo.subscription().change(params);
-
-    if (response.isSuccess()) {
-        SubscriptionChangeData data = response.getData().get();
-        System.out.println("变更状态: " + data.getSubscriptionChangeStatus());
-        System.out.println("新订阅 ID: " + data.getSubscriptionId());
-
-        // 处理不同状态
-        if (data.isAuthorizationRequired()) {
-            String redirectUrl = data.fetchRedirectUrl();
-            System.out.println("重定向用户到: " + redirectUrl);
-        } else if (data.isSuccess()) {
-            System.out.println("订阅升级成功");
-        }
-    }
-} catch (WaffoUnknownStatusException e) {
-    // 状态未知 - 不要假设失败！用户可能已完成支付
-    System.err.println("状态未知，需要查询确认: " + e.getMessage());
-
-    // 正确处理：调用查询 API 确认实际状态
-    ApiResponse<SubscriptionChangeData> inquiryResponse = waffo.subscription().changeInquiry(
-        SubscriptionChangeInquiryParams.builder()
-            .subscriptionRequest(subscriptionRequest)
-            .originSubscriptionRequest(originSubscriptionRequest)
-            .build()
-    );
-    // 或等待 Webhook 回调通知
-}
-```
-<!-- tabs:end -->
 
 #### 查询订阅变更状态
 
-<!-- tabs:start -->
-#### **Node.js**
 
-```typescript
-const response = await waffo.subscription().changeInquiry({
-  subscriptionRequest: 'new-subscription-request-id',
-  originSubscriptionRequest: 'original-subscription-request-id',
-});
-
-if (response.isSuccess()) {
-  const data = response.getData();
-  console.log('变更状态:', data.subscriptionChangeStatus);
-  console.log('新订阅 ID:', data.subscriptionId);
-  console.log('剩余金额:', data.remainingAmount);
-}
-```
-
-#### **Java**
-
-```java
-SubscriptionChangeInquiryParams params = SubscriptionChangeInquiryParams.builder()
-    .subscriptionRequest("new-subscription-request-id")
-    .originSubscriptionRequest("original-subscription-request-id")
-    .build();
-
-ApiResponse<SubscriptionChangeInquiryData> response = waffo.subscription().changeInquiry(params);
-
-if (response.isSuccess()) {
-    SubscriptionChangeInquiryData data = response.getData().get();
-    System.out.println("变更状态: " + data.getSubscriptionChangeStatus());
-    System.out.println("新订阅 ID: " + data.getSubscriptionId());
-    System.out.println("剩余金额: " + data.getRemainingAmount());
-}
-```
-<!-- tabs:end -->
 
 #### 订阅变更状态值
 
@@ -588,7 +414,7 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 
 ```go
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/net"
+    "github.com/waffo-com/waffo-go/net"
 )
 
 type CustomTransport struct {
@@ -798,85 +624,11 @@ handler := client.Webhook().
 
 ### 从响应中读取未知字段
 
-<!-- tabs:start -->
-#### **Node.js**
 
-```typescript
-// 从响应中获取额外字段
-const response = await waffo.order().inquiry({ paymentRequestId: 'REQ001' });
-if (response.isSuccess()) {
-  const data = response.getData();
-
-  // 访问 SDK 中尚未定义的字段
-  const newField = data.extraParams?.['newField'];
-
-  // 如果知道类型，可以使用类型断言
-  const typedValue = data.extraParams?.['newField'] as string;
-}
-
-// 从 Webhook 通知中获取额外字段
-webhookHandler.onPaymentNotification((notification) => {
-  const result = notification.result;
-  const newField = result.extraParams?.['newField'];
-});
-```
-
-#### **Java**
-
-```java
-// 从响应中获取额外字段
-ApiResponse<InquiryOrderData> response = waffo.order().inquiry(params);
-if (response.isSuccess()) {
-    InquiryOrderData data = response.getData().orElse(null);
-
-    // 访问 SDK 中尚未定义的字段
-    Object newField = data.getExtraParam("newField");
-
-    // 类型安全的 getter
-    String typedValue = data.getExtraParam("newField", String.class);
-
-    // 检查字段是否存在
-    if (data.hasExtraParam("newField")) {
-        // ...
-    }
-}
-
-// 从 Webhook 通知中获取额外字段
-PaymentNotificationResult result = notification.getResult();
-Object newField = result.getExtraParam("newField");
-```
-<!-- tabs:end -->
 
 ### 在请求中发送额外字段
 
-<!-- tabs:start -->
-#### **Node.js**
 
-```typescript
-// TypeScript 类型定义包含索引签名 [key: string]: unknown
-// 可以直接在任何请求中添加额外字段
-const response = await waffo.order().create({
-  paymentRequestId: 'REQ001',
-  merchantOrderId: 'ORDER001',
-  // ... 其他必填字段
-  newField: 'value',           // 额外字段 - 无类型错误
-  nested: { key: 123 }         // 嵌套对象 - 同样支持
-});
-```
-
-#### **Java**
-
-```java
-// 在请求中添加额外字段
-CreateOrderParams params = CreateOrderParams.builder()
-    .paymentRequestId("REQ001")
-    .merchantOrderId("ORDER001")
-    // ... 其他必填字段
-    .extraParam("newField", "value")           // 单个字段
-    .extraParam("nested", Map.of("key", 123))  // 嵌套对象
-    .build();
-```
-<!-- tabs:end -->
 
 ### 重要提示
 
@@ -913,7 +665,7 @@ CreateOrderParams params = CreateOrderParams.builder()
 
 ```go
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/errors"
+    "github.com/waffo-com/waffo-go/errors"
 )
 
 resp, err := client.Order().Create(ctx, params, nil)

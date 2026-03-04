@@ -141,7 +141,7 @@ type CreateOrderParams struct {
 **Commands:**
 ```bash
 # Initialize module
-go mod init github.com/waffo-com/waffo-sdk/packages/waffo-go
+go mod init github.com/waffo-com/waffo-go
 
 # Build
 go build ./...

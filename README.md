@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README.md @ commit ee83ead -->
+<!-- Synced with waffo-sdk/README.md @ commit 1160423 -->
 
 <!-- Synced with waffo-sdk/README.md -->
 
@@ -71,7 +71,7 @@ Official Go SDK for [Waffo Payment Platform](https://www.waffo.com), providing o
 ## Installation
 
 ```bash
-go get github.com/waffo-com/waffo-sdk/packages/waffo-go
+go get github.com/waffo-com/waffo-go
 ```
 
 ## Quick Start
@@ -82,8 +82,8 @@ go get github.com/waffo-com/waffo-sdk/packages/waffo-go
 package main
 
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go"
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/config"
+    "github.com/waffo-com/waffo-go"
+    "github.com/waffo-com/waffo-go/config"
 )
 
 func main() {
@@ -108,7 +108,7 @@ func main() {
 import (
     "context"
     "github.com/google/uuid"
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/types/order"
+    "github.com/waffo-com/waffo-go/types/order"
 )
 
 ctx := context.Background()
@@ -142,7 +142,7 @@ if resp.IsSuccess() {
 
 ```go
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/core"
+    "github.com/waffo-com/waffo-go/core"
 )
 
 handler := client.Webhook().
@@ -377,163 +377,75 @@ Change an existing subscription to a new plan (upgrade or downgrade).
 
 #### Change Subscription
 
-<!-- tabs:start -->
-#### **Node.js**
-
-```typescript
-import { randomUUID } from 'crypto';
-import { WaffoUnknownStatusError } from '@waffo/waffo-node';
-
+```go
 // New subscription request ID for the change
-const subscriptionRequest = randomUUID().replace(/-/g, '');
-const originSubscriptionRequest = 'original-subscription-request-id';
+subscriptionRequest := fmt.Sprintf("%x", time.Now().UnixNano())[:32]
+originSubscriptionRequest := "original-subscription-request-id"
 
-try {
-  const response = await waffo.subscription().change({
-    subscriptionRequest,
-    originSubscriptionRequest,
-    remainingAmount: '50.00',  // Remaining value from original subscription
-    currency: 'HKD',
-    requestedAt: new Date().toISOString(),
-    notifyUrl: 'https://your-site.com/webhook/subscription',
-    productInfoList: [
-      {
-        description: 'Yearly Premium Subscription',
-        periodType: 'YEAR',
-        periodInterval: '1',
-        amount: '999.00',
-      },
-    ],
-    userInfo: {
-      userId: 'user_123',
-      userEmail: 'user@example.com',
+resp, err := client.Subscription().Change(ctx, &subscription.ChangeSubscriptionParams{
+    SubscriptionRequest:       subscriptionRequest,
+    OriginSubscriptionRequest: originSubscriptionRequest,
+    RemainingAmount:           "50.00", // Remaining value from original subscription
+    Currency:                  "HKD",
+    RequestedAt:               time.Now().UTC().Format(time.RFC3339),
+    NotifyURL:                 "https://your-site.com/webhook/subscription",
+    ProductInfoList: []subscription.SubscriptionChangeProductInfo{
+        {
+            Description:    "Yearly Premium Subscription",
+            PeriodType:     "YEAR",
+            PeriodInterval: "1",
+            Amount:         "999.00",
+        },
     },
-    goodsInfo: {
-      goodsId: 'GOODS_PREMIUM',
-      goodsName: 'Premium Plan',
+    UserInfo: &subscription.SubscriptionUserInfo{
+        UserID:    "user_123",
+        UserEmail: "user@example.com",
     },
-    paymentInfo: {
-      productName: 'SUBSCRIPTION',
+    GoodsInfo: &subscription.SubscriptionGoodsInfo{
+        GoodsID:   "GOODS_PREMIUM",
+        GoodsName: "Premium Plan",
     },
+    PaymentInfo: &subscription.SubscriptionPaymentInfo{
+        ProductName: "SUBSCRIPTION",
+    },
+    MerchantInfo: &subscription.SubscriptionMerchantInfo{},
     // Optional fields
-    merchantSubscriptionId: `MSUB_UPGRADE_${Date.now()}`,
-    successRedirectUrl: 'https://your-site.com/subscription/upgrade/success',
-    failedRedirectUrl: 'https://your-site.com/subscription/upgrade/failed',
-    cancelRedirectUrl: 'https://your-site.com/subscription/upgrade/cancel',
-    subscriptionManagementUrl: 'https://your-site.com/subscription/manage',
-  });
+    MerchantSubscriptionID:    fmt.Sprintf("MSUB_UPGRADE_%d", time.Now().UnixMilli()),
+    SuccessRedirectURL:        "https://your-site.com/subscription/upgrade/success",
+    FailedRedirectURL:         "https://your-site.com/subscription/upgrade/failed",
+    CancelRedirectURL:         "https://your-site.com/subscription/upgrade/cancel",
+    SubscriptionManagementURL: "https://your-site.com/subscription/manage",
+}, nil)
 
-  if (response.isSuccess()) {
-    const data = response.getData();
-    console.log('Change Status:', data.subscriptionChangeStatus);
-    console.log('New Subscription ID:', data.subscriptionId);
+if err != nil {
+    var unknownErr *errors.WaffoUnknownStatusError
+    if errors.As(err, &unknownErr) {
+        // Status unknown - DO NOT assume failure! User may have completed payment
+        log.Printf("Unknown status, need to query: %v", unknownErr)
 
-    // Handle different statuses
-    if (data.subscriptionChangeStatus === 'AUTHORIZATION_REQUIRED') {
-      // User needs to authorize the change
-      const action = JSON.parse(data.subscriptionAction);
-      console.log('Redirect user to:', action.webUrl);
-    } else if (data.subscriptionChangeStatus === 'SUCCESS') {
-      // Change completed successfully
-      console.log('Subscription upgraded successfully');
+        // Correct handling: Call inquiry API to confirm actual status
+        inquiryResp, _ := client.Subscription().ChangeInquiry(ctx, &subscription.ChangeInquiryParams{
+            SubscriptionRequest: subscriptionRequest,
+        }, nil)
+        _ = inquiryResp
+        // Or wait for Webhook callback
+    } else {
+        log.Fatal(err)
     }
-  }
-} catch (error) {
-  if (error instanceof WaffoUnknownStatusError) {
-    // Status unknown - DO NOT assume failure! User may have completed payment
-    console.error('Unknown status, need to query:', error.message);
+} else if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("Change Status: %s\n", data.SubscriptionChangeStatus)
+    fmt.Printf("New Subscription ID: %s\n", data.SubscriptionID)
 
-    // Correct handling: Call inquiry API to confirm actual status
-    const inquiryResponse = await waffo.subscription().changeInquiry({
-      subscriptionRequest,
-      originSubscriptionRequest,
-    });
-    // Or wait for Webhook callback
-  } else {
-    throw error;
-  }
+    if data.SubscriptionChangeStatus == "AUTHORIZATION_REQUIRED" {
+        // User needs to authorize the change
+        fmt.Printf("Redirect user to: %s\n", data.FetchRedirectURL())
+    } else if data.SubscriptionChangeStatus == "SUCCESS" {
+        // Change completed successfully
+        fmt.Println("Subscription upgraded successfully")
+    }
 }
 ```
-
-#### **Java**
-
-```java
-import com.waffo.types.subscription.*;
-import com.waffo.types.iso.CurrencyCode;
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-
-// New subscription request ID for the change
-String subscriptionRequest = UUID.randomUUID().toString().replace("-", "");
-
-SubscriptionChangeParams params = SubscriptionChangeParams.builder()
-    .subscriptionRequest(subscriptionRequest)
-    .originSubscriptionRequest("original-subscription-request-id")
-    .remainingAmount("50.00")  // Remaining value from original subscription
-    .currency(CurrencyCode.HKD)
-    .requestedAt(DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
-    .notifyUrl("https://your-site.com/webhook/subscription")
-    .productInfoList(Arrays.asList(
-        SubscriptionChangeProductInfo.builder()
-            .description("Yearly Premium Subscription")
-            .periodType(PeriodType.YEAR)
-            .periodInterval("1")
-            .amount("999.00")
-            .build()
-    ))
-    .userInfo(SubscriptionUserInfo.builder()
-        .userId("user_123")
-        .userEmail("user@example.com")
-        .build())
-    .goodsInfo(SubscriptionGoodsInfo.builder()
-        .goodsId("GOODS_PREMIUM")
-        .goodsName("Premium Plan")
-        .build())
-    .paymentInfo(SubscriptionPaymentInfo.builder()
-        .productName("SUBSCRIPTION")
-        .build())
-    // Optional fields
-    .merchantSubscriptionId("MSUB_UPGRADE_" + System.currentTimeMillis())
-    .successRedirectUrl("https://your-site.com/subscription/upgrade/success")
-    .failedRedirectUrl("https://your-site.com/subscription/upgrade/failed")
-    .cancelRedirectUrl("https://your-site.com/subscription/upgrade/cancel")
-    .subscriptionManagementUrl("https://your-site.com/subscription/manage")
-    .build();
-
-try {
-    ApiResponse<SubscriptionChangeData> response = waffo.subscription().change(params);
-
-    if (response.isSuccess()) {
-        SubscriptionChangeData data = response.getData().get();
-        System.out.println("Change Status: " + data.getSubscriptionChangeStatus());
-        System.out.println("New Subscription ID: " + data.getSubscriptionId());
-
-        // Handle different statuses
-        if (data.isAuthorizationRequired()) {
-            // User needs to authorize the change
-            String redirectUrl = data.fetchRedirectUrl();
-            System.out.println("Redirect user to: " + redirectUrl);
-        } else if (data.isSuccess()) {
-            // Change completed successfully
-            System.out.println("Subscription upgraded successfully");
-        }
-    }
-} catch (WaffoUnknownStatusException e) {
-    // Status unknown - DO NOT assume failure! User may have completed payment
-    System.err.println("Unknown status, need to query: " + e.getMessage());
-
-    // Correct handling: Call inquiry API to confirm actual status
-    ApiResponse<SubscriptionChangeData> inquiryResponse = waffo.subscription().changeInquiry(
-        SubscriptionChangeInquiryParams.builder()
-            .subscriptionRequest(subscriptionRequest)
-            .originSubscriptionRequest(originSubscriptionRequest)
-            .build()
-    );
-    // Or wait for Webhook callback
-}
-```
-<!-- tabs:end -->
 
 #### Subscription Change Status Values
 
@@ -546,48 +458,19 @@ try {
 
 #### Query Subscription Change Status
 
-<!-- tabs:start -->
-#### **Node.js**
-
-```typescript
-const response = await waffo.subscription().changeInquiry({
-  subscriptionRequest: 'new-subscription-request-id',
-  originSubscriptionRequest: 'original-subscription-request-id',
-});
-
-if (response.isSuccess()) {
-  const data = response.getData();
-  console.log('Change Status:', data.subscriptionChangeStatus);
-  console.log('New Subscription ID:', data.subscriptionId);
-  console.log('Remaining Amount:', data.remainingAmount);
-  console.log('Currency:', data.currency);
+```go
+resp, err := client.Subscription().ChangeInquiry(ctx, &subscription.ChangeInquiryParams{
+    SubscriptionRequest: "new-subscription-request-id",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("Change Status: %s\n", data.SubscriptionChangeStatus)
+    fmt.Printf("New Subscription ID: %s\n", data.SubscriptionID)
 }
 ```
-
-#### **Java**
-
-```java
-SubscriptionChangeInquiryParams params = SubscriptionChangeInquiryParams.builder()
-    .subscriptionRequest("new-subscription-request-id")
-    .originSubscriptionRequest("original-subscription-request-id")
-    .build();
-
-ApiResponse<SubscriptionChangeInquiryData> response = waffo.subscription().changeInquiry(params);
-
-if (response.isSuccess()) {
-    SubscriptionChangeInquiryData data = response.getData().get();
-    System.out.println("Change Status: " + data.getSubscriptionChangeStatus());
-    System.out.println("New Subscription ID: " + data.getSubscriptionId());
-    System.out.println("Remaining Amount: " + data.getRemainingAmount());
-    System.out.println("Currency: " + data.getCurrency());
-
-    // Helper methods
-    if (data.isAuthorizationRequired()) {
-        System.out.println("Redirect URL: " + data.fetchRedirectUrl());
-    }
-}
-```
-<!-- tabs:end -->
 
 ### Refund Query
 
@@ -821,7 +704,7 @@ paymentInfo: {
 
 ```go
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/net"
+    "github.com/waffo-com/waffo-go/net"
 )
 
 type CustomTransport struct {
@@ -854,85 +737,37 @@ When Waffo API adds new fields that are not yet defined in the SDK, you can use 
 
 ### Reading Unknown Fields from Responses
 
-<!-- tabs:start -->
-#### **Node.js**
+```go
+// In Go, use the ExtraParams field (map[string]interface{}) on response data structs
+// Note: ExtraParams is populated for any JSON fields not defined in the struct
 
-```typescript
 // Get extra field from response
-const response = await waffo.order().inquiry({ paymentRequestId: 'REQ001' });
-if (response.isSuccess()) {
-  const data = response.getData();
-
-  // Access field not yet defined in SDK
-  const newField = data.extraParams?.['newField'];
-
-  // Or use type assertion if you know the type
-  const typedValue = data.extraParams?.['newField'] as string;
-}
-
-// Get extra field from webhook notification
-webhookHandler.onPaymentNotification((notification) => {
-  const result = notification.result;
-  const newField = result.extraParams?.['newField'];
-});
-```
-
-#### **Java**
-
-```java
-// Get extra field from response
-ApiResponse<InquiryOrderData> response = waffo.order().inquiry(params);
-if (response.isSuccess()) {
-    InquiryOrderData data = response.getData().orElse(null);
-
-    // Access field not yet defined in SDK
-    Object newField = data.getExtraParam("newField");
-
-    // Type-safe getter
-    String typedValue = data.getExtraParam("newField", String.class);
-
-    // Check if field exists
-    if (data.hasExtraParam("newField")) {
-        // ...
+resp, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
+    PaymentRequestID: "REQ001",
+}, nil)
+if resp.IsSuccess() {
+    data := resp.GetData()
+    // Access extra fields via ExtraParams map
+    if newField, ok := data.ExtraParams["newField"]; ok {
+        fmt.Printf("New field: %v\n", newField)
     }
 }
-
-// Get extra field from webhook notification
-PaymentNotificationResult result = notification.getResult();
-Object newField = result.getExtraParam("newField");
 ```
-<!-- tabs:end -->
 
 ### Sending Extra Fields in Requests
 
-<!-- tabs:start -->
-#### **Node.js**
-
-```typescript
-// TypeScript types include index signature [key: string]: unknown
-// You can directly add extra fields to any request
-const response = await waffo.order().create({
-  paymentRequestId: 'REQ001',
-  merchantOrderId: 'ORDER001',
-  // ... other required fields
-  newField: 'value',           // Extra field - no type error
-  nested: { key: 123 }         // Nested object - works too
-});
-```
-
-#### **Java**
-
-```java
-// Add extra fields to request
-CreateOrderParams params = CreateOrderParams.builder()
-    .paymentRequestId("REQ001")
-    .merchantOrderId("ORDER001")
+```go
+// In Go, use the ExtraParams field (types.ExtraParams = map[string]interface{})
+resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
+    PaymentRequestID: "REQ001",
+    MerchantOrderID:  "ORDER001",
     // ... other required fields
-    .extraParam("newField", "value")           // Single field
-    .extraParam("nested", Map.of("key", 123))  // Nested object
-    .build();
+    ExtraParams: types.ExtraParams{
+        "newField": "value",                      // Extra field
+        "nested":   map[string]interface{}{"key": 123}, // Nested object
+    },
+}, nil)
 ```
-<!-- tabs:end -->
 
 ### Important Notes
 
@@ -969,7 +804,7 @@ CreateOrderParams params = CreateOrderParams.builder()
 
 ```go
 import (
-    "github.com/waffo-com/waffo-sdk/packages/waffo-go/errors"
+    "github.com/waffo-com/waffo-go/errors"
 )
 
 resp, err := client.Order().Create(ctx, params, nil)
