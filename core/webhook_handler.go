@@ -18,6 +18,39 @@ const (
 	EventSubscriptionChange        = "SUBSCRIPTION_CHANGE_NOTIFICATION"
 )
 
+// Order status values returned in PAYMENT_NOTIFICATION webhook and order query responses.
+// Matches Java SDK OrderStatus enum and Node SDK OrderStatus type.
+// Note: CAPTURE_IN_PROGRESS exists in Java/Node SDKs but is not documented in openapi.json.
+const (
+	OrderStatusPayInProgress       = "PAY_IN_PROGRESS"        // Order accepted, payment in progress
+	OrderStatusAuthorizationRequired = "AUTHORIZATION_REQUIRED" // User authorization required (redirect to payment page)
+	OrderStatusAuthedWaitingCapture = "AUTHED_WAITING_CAPTURE" // Authorized, waiting for merchant to capture (CARD only)
+	OrderStatusPaySuccess          = "PAY_SUCCESS"             // Payment completed
+	OrderStatusOrderClose          = "ORDER_CLOSE"             // Order closed (cancelled, failed, or expired)
+)
+
+// Refund status values returned in REFUND_NOTIFICATION webhook.
+// Matches Java SDK RefundStatus enum and Node SDK RefundStatus type.
+const (
+	RefundStatusInProgress        = "REFUND_IN_PROGRESS"       // Refund is being processed (async)
+	RefundStatusPartiallyRefunded = "ORDER_PARTIALLY_REFUNDED" // Order partially refunded
+	RefundStatusFullyRefunded     = "ORDER_FULLY_REFUNDED"     // Order fully refunded
+	RefundStatusFailed            = "ORDER_REFUND_FAILED"      // Refund failed
+)
+
+// Subscription status values returned in SUBSCRIPTION_STATUS_NOTIFICATION webhook.
+// Matches Java SDK SubscriptionStatus enum and Node SDK SubscriptionStatus type.
+const (
+	SubscriptionStatusAuthorizationRequired = "AUTHORIZATION_REQUIRED" // User authorization required
+	SubscriptionStatusInProgress            = "IN_PROGRESS"            // Subscription being processed
+	SubscriptionStatusActive                = "ACTIVE"                 // Subscription active and billing
+	SubscriptionStatusClose                 = "CLOSE"                  // Subscription closed (timeout or failed)
+	SubscriptionStatusMerchantCancelled     = "MERCHANT_CANCELLED"     // Cancelled by merchant
+	SubscriptionStatusUserCancelled         = "USER_CANCELLED"         // Cancelled by user
+	SubscriptionStatusChannelCancelled      = "CHANNEL_CANCELLED"      // Cancelled by channel
+	SubscriptionStatusExpired               = "EXPIRED"                // Subscription expired
+)
+
 // WebhookResult represents the result of webhook processing.
 type WebhookResult struct {
 	Success           bool

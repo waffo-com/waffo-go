@@ -1,7 +1,3 @@
-> **Note**: This repository is a read-only distribution mirror.
-> For bugs and feature requests, please [open an issue here](../../issues).
-> Code contributions: development happens internally, PRs are not accepted in this repo.
-
 # Waffo Go SDK
 
 <!-- Synced with waffo-sdk/README.md @ commit ee83ead -->
