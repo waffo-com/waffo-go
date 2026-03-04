@@ -1,0 +1,36 @@
+# Go SDK .gitignore
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# E2E test config (contains sensitive API keys)
+test/e2e/application-test.yml
+application-test.yml
+
+# E2E screenshots
+test-screenshots/
+
+# Build output
+bin/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
