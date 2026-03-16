@@ -10,26 +10,55 @@ import (
 
 // CreateOrderParams represents the parameters for creating an order.
 type CreateOrderParams struct {
-	PaymentRequestID   string             `json:"paymentRequestId"`
-	MerchantOrderID    string             `json:"merchantOrderId"`
-	OrderCurrency      string             `json:"orderCurrency"`
-	OrderAmount        string             `json:"orderAmount"`
-	UserCurrency       string             `json:"userCurrency,omitempty"`
-	OrderDescription   string             `json:"orderDescription"`
-	NotifyURL          string             `json:"notifyUrl"`
-	SuccessRedirectURL string             `json:"successRedirectUrl,omitempty"`
-	FailedRedirectURL  string             `json:"failedRedirectUrl,omitempty"`
-	CancelRedirectURL  string             `json:"cancelRedirectUrl,omitempty"`
-	OrderRequestedAt   string             `json:"orderRequestedAt,omitempty"`
-	OrderExpiredAt     string             `json:"orderExpiredAt,omitempty"`
-	MerchantInfo       *MerchantInfo      `json:"merchantInfo,omitempty"`
-	UserInfo           *UserInfo          `json:"userInfo"`
-	PaymentInfo        *PaymentInfo       `json:"paymentInfo"`
-	GoodsInfo          *GoodsInfo         `json:"goodsInfo,omitempty"`
-	AddressInfo        *AddressInfo       `json:"addressInfo,omitempty"`
-	ExtendInfo         string             `json:"extendInfo,omitempty"`
-	Metadata           string             `json:"metadata,omitempty"`
-	ExtraParams        types.ExtraParams  `json:"extraParams,omitempty"`
+	PaymentRequestID   string            `json:"paymentRequestId"`
+	MerchantOrderID    string            `json:"merchantOrderId"`
+	OrderCurrency      string            `json:"orderCurrency"`
+	OrderAmount        string            `json:"orderAmount"`
+	UserCurrency       string            `json:"userCurrency,omitempty"`
+	OrderDescription   string            `json:"orderDescription"`
+	OrderRequestedAt   string            `json:"orderRequestedAt,omitempty"`
+	OrderExpiredAt     string            `json:"orderExpiredAt,omitempty"`
+	SuccessRedirectURL string            `json:"successRedirectUrl,omitempty"`
+	FailedRedirectURL  string            `json:"failedRedirectUrl,omitempty"`
+	CancelRedirectURL  string            `json:"cancelRedirectUrl,omitempty"`
+	NotifyURL          string            `json:"notifyUrl"`
+	ExtendInfo         string            `json:"extendInfo,omitempty"`
+	MerchantInfo       *MerchantInfo     `json:"merchantInfo,omitempty"`
+	UserInfo           *UserInfo         `json:"userInfo"`
+	GoodsInfo          *GoodsInfo        `json:"goodsInfo,omitempty"`
+	PaymentInfo        *PaymentInfo      `json:"paymentInfo"`
+	CardInfo           *CardInfo         `json:"cardInfo,omitempty"`
+	PaymentTokenData   *PaymentTokenData `json:"paymentTokenData,omitempty"`
+	RiskData           *RiskData         `json:"riskData,omitempty"`
+	AddressInfo        *AddressInfo      `json:"addressInfo,omitempty"`
+	ExtraParams        types.ExtraParams `json:"extraParams,omitempty"`
+}
+
+// CardInfo represents card information for direct card payments.
+type CardInfo struct {
+	CardNumber      string `json:"cardNumber,omitempty"`
+	CardExpiryYear  int    `json:"cardExpiryYear,omitempty"`
+	CardExpiryMonth int    `json:"cardExpiryMonth,omitempty"`
+	CardCvv         string `json:"cardCvv,omitempty"`
+	CardHolderName  string `json:"cardHolderName,omitempty"`
+	ThreeDsDecision string `json:"threeDsDecision,omitempty"`
+}
+
+// PaymentTokenData represents tokenized payment data.
+type PaymentTokenData struct {
+	TokenID string `json:"tokenId,omitempty"`
+}
+
+// RiskData represents risk control auxiliary data.
+type RiskData struct {
+	UserType            string `json:"userType,omitempty"`
+	UserCategory        string `json:"userCategory,omitempty"`
+	UserLegalName       string `json:"userLegalName,omitempty"`
+	UserDisplayName     string `json:"userDisplayName,omitempty"`
+	UserRegistrationIP  string `json:"userRegistrationIp,omitempty"`
+	UserLastSeenIP      string `json:"userLastSeenIp,omitempty"`
+	UserIsNew           string `json:"userIsNew,omitempty"`
+	UserIsFirstPurchase string `json:"userIsFirstPurchase,omitempty"`
 }
 
 // MerchantInfo represents merchant information.
@@ -140,32 +169,46 @@ func (d *CreateOrderData) FetchRedirectURL() string {
 }
 
 // InquiryOrderParams represents the parameters for querying an order.
+// Provide paymentRequestId or acquiringOrderId.
 type InquiryOrderParams struct {
-	MerchantInfo     *MerchantInfo     `json:"merchantInfo,omitempty"`
 	PaymentRequestID string            `json:"paymentRequestId,omitempty"`
-	MerchantOrderID  string            `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID string            `json:"acquiringOrderId,omitempty"`
 	ExtraParams      types.ExtraParams `json:"extraParams,omitempty"`
 }
 
 // InquiryOrderData represents the response data for order inquiry.
 type InquiryOrderData struct {
-	PaymentRequestID string                          `json:"paymentRequestId,omitempty"`
-	AcquiringOrderID string                          `json:"acquiringOrderId,omitempty"`
-	MerchantOrderID  string                          `json:"merchantOrderId,omitempty"`
-	OrderStatus      string                          `json:"orderStatus,omitempty"`
-	OrderAmount      string                          `json:"orderAmount,omitempty"`
-	OrderCurrency    string                          `json:"orderCurrency,omitempty"`
-	FinalDealAmount  string                          `json:"finalDealAmount,omitempty"`
-	PaymentMethod    string                          `json:"paymentMethod,omitempty"`
-	SubscriptionInfo *subscription.SubscriptionInfo  `json:"subscriptionInfo,omitempty"`
-	CancelRedirectUrl string                         `json:"cancelRedirectUrl,omitempty"`
+	PaymentRequestID  string                         `json:"paymentRequestId,omitempty"`
+	MerchantOrderID   string                         `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID  string                         `json:"acquiringOrderId,omitempty"`
+	OrderStatus       string                         `json:"orderStatus,omitempty"`
+	OrderAction       string                         `json:"orderAction,omitempty"`
+	OrderCurrency     string                         `json:"orderCurrency,omitempty"`
+	OrderAmount       string                         `json:"orderAmount,omitempty"`
+	FinalDealAmount   string                         `json:"finalDealAmount,omitempty"`
+	OrderDescription  string                         `json:"orderDescription,omitempty"`
+	MerchantInfo      *MerchantInfo                  `json:"merchantInfo,omitempty"`
+	UserInfo          *UserInfo                      `json:"userInfo,omitempty"`
+	GoodsInfo         *GoodsInfo                     `json:"goodsInfo,omitempty"`
+	PaymentInfo       *PaymentInfo                   `json:"paymentInfo,omitempty"`
+	AddressInfo       *AddressInfo                   `json:"addressInfo,omitempty"`
+	OrderRequestedAt  string                         `json:"orderRequestedAt,omitempty"`
+	OrderExpiredAt    string                         `json:"orderExpiredAt,omitempty"`
+	OrderUpdatedAt    string                         `json:"orderUpdatedAt,omitempty"`
+	OrderCompletedAt  string                         `json:"orderCompletedAt,omitempty"`
+	RefundExpiryAt    string                         `json:"refundExpiryAt,omitempty"`
+	CancelRedirectURL string                         `json:"cancelRedirectUrl,omitempty"`
+	OrderFailedReason string                         `json:"orderFailedReason,omitempty"`
+	ExtendInfo        string                         `json:"extendInfo,omitempty"`
+	UserCurrency      string                         `json:"userCurrency,omitempty"`
+	SubscriptionInfo  *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
 }
 
 // CancelOrderParams represents the parameters for canceling an order.
 type CancelOrderParams struct {
-	MerchantInfo     *MerchantInfo     `json:"merchantInfo,omitempty"`
 	PaymentRequestID string            `json:"paymentRequestId,omitempty"`
-	MerchantOrderID  string            `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID string            `json:"acquiringOrderId,omitempty"`
+	MerchantID       string            `json:"merchantId,omitempty"`
 	OrderRequestedAt string            `json:"orderRequestedAt,omitempty"`
 	ExtraParams      types.ExtraParams `json:"extraParams,omitempty"`
 }
@@ -173,45 +216,55 @@ type CancelOrderParams struct {
 // CancelOrderData represents the response data for order cancellation.
 type CancelOrderData struct {
 	PaymentRequestID string `json:"paymentRequestId,omitempty"`
+	MerchantOrderID  string `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
 	OrderStatus      string `json:"orderStatus,omitempty"`
 }
 
 // RefundOrderParams represents the parameters for refunding an order.
 type RefundOrderParams struct {
-	MerchantID            string            `json:"merchantId,omitempty"`
 	RefundRequestID       string            `json:"refundRequestId"`
 	AcquiringOrderID      string            `json:"acquiringOrderId,omitempty"`
 	MerchantRefundOrderID string            `json:"merchantRefundOrderId,omitempty"`
+	MerchantID            string            `json:"merchantId,omitempty"`
+	RequestedAt           string            `json:"requestedAt,omitempty"`
 	RefundAmount          string            `json:"refundAmount"`
 	RefundReason          string            `json:"refundReason,omitempty"`
-	RequestedAt           string            `json:"requestedAt,omitempty"`
 	NotifyURL             string            `json:"refundNotifyUrl,omitempty"`
-	UserInfo              *RefundUserInfo   `json:"userInfo,omitempty"`
 	ExtendInfo            string            `json:"extendInfo,omitempty"`
+	RefundSource          string            `json:"refundSource,omitempty"`
+	UserInfo              *RefundUserInfo   `json:"userInfo,omitempty"`
 	ExtraParams           types.ExtraParams `json:"extraParams,omitempty"`
 }
 
 // RefundOrderData represents the response data for order refund.
 type RefundOrderData struct {
 	RefundRequestID        string `json:"refundRequestId,omitempty"`
+	MerchantRefundOrderID  string `json:"merchantRefundOrderId,omitempty"`
+	AcquiringOrderID       string `json:"acquiringOrderId,omitempty"`
 	AcquiringRefundOrderID string `json:"acquiringRefundOrderId,omitempty"`
-	RefundStatus           string `json:"refundStatus,omitempty"`
 	RefundAmount           string `json:"refundAmount,omitempty"`
+	RefundStatus           string `json:"refundStatus,omitempty"`
+	RemainingRefundAmount  string `json:"remainingRefundAmount,omitempty"`
+	RefundSource           string `json:"refundSource,omitempty"`
 }
 
 // CaptureOrderParams represents the parameters for capturing a pre-authorized payment.
 type CaptureOrderParams struct {
-	MerchantInfo     *MerchantInfo     `json:"merchantInfo,omitempty"`
-	PaymentRequestID string            `json:"paymentRequestId"`
-	CaptureAmount    string            `json:"captureAmount"`
-	ExtraParams      types.ExtraParams `json:"extraParams,omitempty"`
+	PaymentRequestID   string            `json:"paymentRequestId,omitempty"`
+	AcquiringOrderID   string            `json:"acquiringOrderId,omitempty"`
+	MerchantID         string            `json:"merchantId,omitempty"`
+	CaptureRequestedAt string            `json:"captureRequestedAt,omitempty"`
+	CaptureAmount      string            `json:"captureAmount"`
+	ExtraParams        types.ExtraParams `json:"extraParams,omitempty"`
 }
 
 // CaptureOrderData represents the response data for order capture.
 type CaptureOrderData struct {
 	PaymentRequestID string `json:"paymentRequestId,omitempty"`
+	MerchantOrderID  string `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
 	OrderStatus      string `json:"orderStatus,omitempty"`
-	CapturedAmount   string `json:"capturedAmount,omitempty"`
 }
 
 // RefundUserInfo represents user information required for refunds with specific payment methods.

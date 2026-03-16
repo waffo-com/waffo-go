@@ -151,9 +151,6 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 
 	// Verify subscription is active
 	inquiryParams := &subscription.InquirySubscriptionParams{
-		MerchantInfo: &subscription.SubscriptionMerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		SubscriptionRequest: originalSubscriptionRequest,
 	}
 
@@ -261,10 +258,8 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 	t.Log("=== Step 4: Querying subscription change status ===")
 
 	changeInquiryParams := &subscription.ChangeInquiryParams{
-		MerchantInfo: &subscription.SubscriptionMerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
-		SubscriptionRequest: newSubscriptionRequest,
+		OriginSubscriptionRequest: originalSubscriptionRequest,
+		SubscriptionRequest:       newSubscriptionRequest,
 	}
 
 	changeInquiryResp, err := testWaffo.Subscription().ChangeInquiry(context.Background(), changeInquiryParams, nil)
@@ -301,12 +296,11 @@ func TestSubscriptionChange_QueryOnly(t *testing.T) {
 	// Useful for checking the query API without creating new subscriptions
 
 	subscriptionRequest := "existing_change_request_id"
+	originSubscriptionRequest := "existing_origin_request_id"
 
 	changeInquiryParams := &subscription.ChangeInquiryParams{
-		MerchantInfo: &subscription.SubscriptionMerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
-		SubscriptionRequest: subscriptionRequest,
+		OriginSubscriptionRequest: originSubscriptionRequest,
+		SubscriptionRequest:       subscriptionRequest,
 	}
 
 	resp, err := testWaffo.Subscription().ChangeInquiry(context.Background(), changeInquiryParams, nil)

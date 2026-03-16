@@ -638,8 +638,8 @@ func TestWebhook_SubscriptionPeriodChanged(t *testing.T) {
 
 		if manageResp.IsSuccess() {
 			manageData := manageResp.GetData()
-			if manageData != nil && manageData.ManageURL != "" {
-				managementURL = manageData.ManageURL
+			if manageData != nil && manageData.ManagementURL != "" {
+				managementURL = manageData.ManagementURL
 				t.Logf("  managementUrl: %s", managementURL)
 				break
 			}
@@ -929,9 +929,6 @@ func TestWebhook_PaymentNotification(t *testing.T) {
 	base.SleepMs(3000)
 	for i := 0; i < 5; i++ {
 		inquiryParams := &order.InquiryOrderParams{
-			MerchantInfo: &order.MerchantInfo{
-				MerchantID: testConfig.MerchantID,
-			},
 			PaymentRequestID: webhookPaymentRequestID,
 		}
 		inquiryResp, inquiryErr := testWaffo.Order().Inquiry(context.Background(), inquiryParams, nil)

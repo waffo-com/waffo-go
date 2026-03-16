@@ -323,8 +323,7 @@ func TestReadmeDemo_CancelOrder(t *testing.T) {
 	// README example: cancel the order
 	cancelResp, err := client.Order().Cancel(context.Background(), &order.CancelOrderParams{
 		PaymentRequestID: paymentRequestID,
-		// MerchantInfo is auto-injected from WaffoConfig.MerchantID when configured
-		MerchantInfo: &order.MerchantInfo{},
+		AcquiringOrderID: acquiringOrderID,
 	}, nil)
 	if err != nil {
 		t.Fatalf("Cancel order returned unexpected Go error: %v", err)
@@ -391,7 +390,6 @@ func TestReadmeDemo_QueryRefund(t *testing.T) {
 	refundRequestID := generateRequestID()
 
 	resp, err := client.Refund().Inquiry(context.Background(), &refund.InquiryRefundParams{
-		MerchantInfo:    types.MerchantInfo{},
 		RefundRequestID: refundRequestID,
 	}, nil)
 	if err != nil {
@@ -641,7 +639,6 @@ func TestReadmeDemo_GetSubscriptionManagementUrl(t *testing.T) {
 	// README example: get subscription management URL
 	manageResp, err := client.Subscription().Manage(context.Background(), &subscription.ManageSubscriptionParams{
 		SubscriptionRequest: subscriptionRequest,
-		ReturnURL:           "https://your-site.com/subscription/manage/return",
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get subscription management URL returned unexpected Go error: %v", err)
@@ -654,7 +651,7 @@ func TestReadmeDemo_GetSubscriptionManagementUrl(t *testing.T) {
 		subscriptionRequest, manageResp.GetCode(), manageResp.GetMessage(), manageResp.IsSuccess(),
 		func() string {
 			if manageResp.GetData() != nil {
-				return manageResp.GetData().ManageURL
+				return manageResp.GetData().ManagementURL
 			}
 			return "(none)"
 		}())
@@ -670,9 +667,7 @@ func TestReadmeDemo_QueryMerchantConfig(t *testing.T) {
 	client := newReadmeDemoClient(t)
 
 	// README example: query merchant configuration
-	resp, err := client.MerchantConfig().Inquiry(context.Background(), &merchant.InquiryMerchantConfigParams{
-		MerchantInfo: types.MerchantInfo{},
-	}, nil)
+	resp, err := client.MerchantConfig().Inquiry(context.Background(), &merchant.InquiryMerchantConfigParams{}, nil)
 	if err != nil {
 		t.Fatalf("Query merchant config returned unexpected Go error: %v", err)
 	}
@@ -685,8 +680,8 @@ func TestReadmeDemo_QueryMerchantConfig(t *testing.T) {
 		if data == nil {
 			t.Fatal("Merchant config response data should not be nil on success")
 		}
-		t.Logf("Merchant config: merchantID=%s, name=%s, currencies=%v",
-			data.MerchantID, data.MerchantName, data.SupportedCurrencies)
+		t.Logf("Merchant config: merchantID=%s, totalDailyLimit=%v, transactionLimit=%v",
+			data.MerchantID, data.TotalDailyLimit, data.TransactionLimit)
 	} else {
 		// The API may fail if merchantId injection into top-level field is not supported
 		// by the current SDK version. Log for informational purposes.
@@ -703,9 +698,7 @@ func TestReadmeDemo_QueryPayMethodConfig(t *testing.T) {
 	client := newReadmeDemoClient(t)
 
 	// README example: query available payment methods
-	resp, err := client.PayMethodConfig().Inquiry(context.Background(), &merchant.InquiryPayMethodConfigParams{
-		MerchantInfo: types.MerchantInfo{},
-	}, nil)
+	resp, err := client.PayMethodConfig().Inquiry(context.Background(), &merchant.InquiryPayMethodConfigParams{}, nil)
 	if err != nil {
 		t.Fatalf("Query pay method config returned unexpected Go error: %v", err)
 	}
@@ -718,9 +711,9 @@ func TestReadmeDemo_QueryPayMethodConfig(t *testing.T) {
 		if data == nil {
 			t.Fatal("Pay method config response data should not be nil on success")
 		}
-		t.Logf("Available payment methods: %d methods", len(data.PaymentMethods))
-		for _, pm := range data.PaymentMethods {
-			t.Logf("  - %s (%s): currencies=%v", pm.PaymentMethod, pm.PaymentMethodName, pm.Currencies)
+		t.Logf("Available payment methods: %d methods", len(data.PayMethodDetails))
+		for _, pm := range data.PayMethodDetails {
+			t.Logf("  - %s (%s, %s): status=%s", pm.ProductName, pm.PayMethodName, pm.Country, pm.CurrentStatus)
 		}
 	} else {
 		// The API may fail if merchantId injection into top-level field is not supported

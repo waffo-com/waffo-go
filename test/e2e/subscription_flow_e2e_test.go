@@ -145,9 +145,6 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 	base.SleepMs(2000)
 
 	inquiryParams := &subscription.InquirySubscriptionParams{
-		MerchantInfo: &subscription.SubscriptionMerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		SubscriptionRequest: subscriptionRequest,
 	}
 
@@ -168,6 +165,31 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 		t.Logf("Inquiry failed: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			subscriptionRequest, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
 	}
+
+	// 4. Manage subscription (get management URL)
+	manageParams := &subscription.ManageSubscriptionParams{
+		SubscriptionID:      data.SubscriptionID,
+		SubscriptionRequest: subscriptionRequest,
+	}
+
+	manageResp, manageErr := testWaffo.Subscription().Manage(context.Background(), manageParams, nil)
+	if manageErr != nil {
+		t.Logf("Warning: Manage subscription error: subscriptionRequest=%s, subscriptionID=%s, error=%v",
+			subscriptionRequest, data.SubscriptionID, manageErr)
+	} else {
+		t.Logf("Manage response: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
+			subscriptionRequest, data.SubscriptionID, manageResp.GetCode(), manageResp.GetMessage(), manageResp.GetData())
+
+		if manageResp.IsSuccess() {
+			manageData := manageResp.GetData()
+			if manageData != nil && manageData.ManagementURL != "" {
+				t.Logf("Management URL: %s", manageData.ManagementURL)
+			}
+		} else {
+			t.Logf("Manage not successful (may be expected depending on subscription state): code=%s, msg=%s",
+				manageResp.GetCode(), manageResp.GetMessage())
+		}
+	}
 }
 
 func TestSubscriptionFlow_QueryOnly(t *testing.T) {
@@ -181,9 +203,6 @@ func TestSubscriptionFlow_QueryOnly(t *testing.T) {
 	subscriptionRequest := "existing_subscription_request_id"
 
 	inquiryParams := &subscription.InquirySubscriptionParams{
-		MerchantInfo: &subscription.SubscriptionMerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		SubscriptionRequest: subscriptionRequest,
 	}
 
@@ -326,9 +345,6 @@ func TestSubscriptionFlow_CancelSubscription(t *testing.T) {
 
 	// 4. Verify cancellation
 	inquiryParams := &subscription.InquirySubscriptionParams{
-		MerchantInfo: &subscription.SubscriptionMerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		SubscriptionRequest: subscriptionRequest,
 	}
 

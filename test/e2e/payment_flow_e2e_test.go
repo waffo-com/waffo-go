@@ -248,9 +248,6 @@ func TestPaymentFlow_CreditCardPayment(t *testing.T) {
 	base.SleepMs(2000)
 
 	inquiryParams := &order.InquiryOrderParams{
-		MerchantInfo: &order.MerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		PaymentRequestID: returnedPaymentRequestID,
 	}
 

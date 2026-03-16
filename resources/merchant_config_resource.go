@@ -8,7 +8,7 @@ import (
 	"github.com/waffo-com/waffo-go/types/merchant"
 )
 
-const merchantConfigBasePath = "/merchant"
+const merchantConfigBasePath = "/merchantconfig"
 
 // MerchantConfigResource provides methods for merchant configuration.
 type MerchantConfigResource struct {

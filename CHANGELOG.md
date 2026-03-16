@@ -5,14 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2026-03-04
+## [1.3.0] - 2026-03-14
+
+### Fixed
+
+- **Type alignment with openapi.json**: Aligned all SDK type fields with openapi.json definitions across order, subscription, refund, and merchant types
+- **Endpoint path fixes**: Corrected `merchantConfig` and `payMethodConfig` API endpoint paths
+- **`CaptureOrderParams`**: Replaced nested `MerchantInfo` wrapper with flat `MerchantID` field matching API schema
+- **`InquiryPayMethodConfigParams`**: Replaced nested `MerchantInfo` wrapper with flat `MerchantID` field
 
 ### Added
 
-- **Status constants**: Added named constants for `RefundStatus`, `OrderStatus`, and `SubscriptionStatus` in `webhook_handler.go`, aligned with Java SDK enums and Node SDK union types
-  - `RefundStatusPending`, `RefundStatusSuccess`, `RefundStatusFailed`, `RefundStatusClosed`
-  - `OrderStatusCreated`, `OrderStatusPaySuccess`, `OrderStatusAuthorizationRequired`, `OrderStatusFailed`, `OrderStatusClosed`
-  - `SubscriptionStatusActive`, `SubscriptionStatusPending`, `SubscriptionStatusCancelled`, `SubscriptionStatusExpired`, `SubscriptionStatusMerchantCancelled`, `SubscriptionStatusPaymentFailed`, `SubscriptionStatusSuspended`, `SubscriptionStatusTrialing`
+- **Status constants**: Named constants for `RefundStatus`, `OrderStatus`, and `SubscriptionStatus` in `webhook_handler.go`, aligned with Java SDK enums and Node SDK union types
+- **Capture E2E test**: Full manual capture flow test (create → pay → poll AUTHED_WAITING_CAPTURE → capture)
+- **MerchantConfig E2E test**: Endpoint verification for merchant and payment method config APIs
+- **Schema field validation**: Automated test to verify SDK types match openapi.json field definitions
+- **README Go examples**: Added Go code examples to all README tabs blocks
 
 ## [1.2.2] - 2026-03-03
 

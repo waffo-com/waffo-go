@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types"
 	"github.com/waffo-com/waffo-go/types/order"
 	"github.com/waffo-com/waffo-go/types/refund"
 )
@@ -146,9 +145,6 @@ func TestRefund_PartialRefundFlow(t *testing.T) {
 
 	// Verify payment success by querying order
 	inquiryParams := &order.InquiryOrderParams{
-		MerchantInfo: &order.MerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		PaymentRequestID: paymentRequestID,
 	}
 
@@ -222,9 +218,6 @@ func TestRefund_PartialRefundFlow(t *testing.T) {
 	t.Log("=== Step 3: Querying refund by refundRequestId ===")
 
 	refundInquiryParams := &refund.InquiryRefundParams{
-		MerchantInfo: types.MerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		RefundRequestID: refundRequestID,
 	}
 
@@ -239,10 +232,10 @@ func TestRefund_PartialRefundFlow(t *testing.T) {
 		if refundInquiryResp.IsSuccess() {
 			refundInquiryData := refundInquiryResp.GetData()
 			if refundInquiryData != nil {
-				t.Logf("Refund Inquiry Detail: refundRequestID=%s, acquiringRefundOrderID=%s, status=%s, amount=%s, currency=%s, reason=%s",
+				t.Logf("Refund Inquiry Detail: refundRequestID=%s, acquiringRefundOrderID=%s, status=%s, amount=%s, userCurrency=%s, reason=%s",
 					refundInquiryData.RefundRequestID, refundInquiryData.AcquiringRefundOrderID,
 					refundInquiryData.RefundStatus, refundInquiryData.RefundAmount,
-					refundInquiryData.RefundCurrency, refundInquiryData.RefundReason)
+					refundInquiryData.UserCurrency, refundInquiryData.RefundReason)
 
 				// Verify refund request ID matches
 				if refundInquiryData.RefundRequestID != refundRequestID {
@@ -280,9 +273,6 @@ func TestRefund_QueryOnly(t *testing.T) {
 	refundRequestID := "existing_refund_request_id"
 
 	refundInquiryParams := &refund.InquiryRefundParams{
-		MerchantInfo: types.MerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
 		RefundRequestID: refundRequestID,
 	}
 

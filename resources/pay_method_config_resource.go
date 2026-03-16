@@ -8,7 +8,7 @@ import (
 	"github.com/waffo-com/waffo-go/types/merchant"
 )
 
-const payMethodConfigBasePath = "/paymethod"
+const payMethodConfigBasePath = "/paymethodconfig"
 
 // PayMethodConfigResource provides methods for payment method configuration.
 type PayMethodConfigResource struct {
