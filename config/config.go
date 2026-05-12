@@ -9,7 +9,7 @@ import (
 )
 
 // SDK version
-const SDKVersion = "1.3.1"
+const SDKVersion = "1.3.2"
 
 // WaffoConfig contains the configuration for the Waffo SDK.
 type WaffoConfig struct {

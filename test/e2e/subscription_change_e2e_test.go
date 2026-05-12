@@ -158,21 +158,29 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 	if err != nil {
 		t.Logf("Warning: Failed to query subscription: subscriptionRequest=%s, subscriptionID=%s, error=%v",
 			originalSubscriptionRequest, originalSubscriptionID, err)
+		t.Skip("Original subscription status could not be verified in sandbox")
 	} else {
 		t.Logf("Inquiry Response: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
 			originalSubscriptionRequest, originalSubscriptionID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
 
 		if inquiryResp.IsSuccess() {
 			inquiryData := inquiryResp.GetData()
+			if inquiryData == nil {
+				t.Fatalf("Original subscription inquiry data is nil: subscriptionRequest=%s, subscriptionID=%s",
+					originalSubscriptionRequest, originalSubscriptionID)
+			}
 			t.Logf("Original Subscription Status: subscriptionRequest=%s, subscriptionID=%s, status=%s",
 				originalSubscriptionRequest, originalSubscriptionID, inquiryData.SubscriptionStatus)
 
 			if inquiryData.SubscriptionStatus != "ACTIVE" {
-				t.Log("Warning: Subscription is not ACTIVE, change may fail")
+				t.Skipf("Original subscription remained %s in sandbox; cannot verify subscription change",
+					inquiryData.SubscriptionStatus)
 			}
 		} else {
 			t.Logf("Inquiry failed: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
 				originalSubscriptionRequest, originalSubscriptionID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
+			t.Skipf("Original subscription status could not be verified: code=%s, msg=%s",
+				inquiryResp.GetCode(), inquiryResp.GetMessage())
 		}
 	}
 
@@ -236,10 +244,8 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 	t.Logf("Change Response: code=%s, msg=%s, data=%+v", changeResp.GetCode(), changeResp.GetMessage(), changeResp.GetData())
 
 	if !changeResp.IsSuccess() {
-		t.Logf("Change failed (may be expected if subscription not active): newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
+		t.Fatalf("Change failed after ACTIVE prerequisite: newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			newSubscriptionRequest, originalSubscriptionRequest, changeResp.GetCode(), changeResp.GetMessage(), changeResp.GetData())
-		t.Logf("This test requires the original subscription to be ACTIVE")
-		return
 	}
 
 	changeData := changeResp.GetData()
@@ -264,9 +270,8 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 
 	changeInquiryResp, err := testWaffo.Subscription().ChangeInquiry(context.Background(), changeInquiryParams, nil)
 	if err != nil {
-		t.Logf("Warning: Failed to query change status: newSubscriptionRequest=%s, originSubscriptionRequest=%s, error=%v",
+		t.Fatalf("Failed to query change status: newSubscriptionRequest=%s, originSubscriptionRequest=%s, error=%v",
 			newSubscriptionRequest, originalSubscriptionRequest, err)
-		return
 	}
 
 	t.Logf("Change Inquiry Response: newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
@@ -274,12 +279,14 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 
 	if changeInquiryResp.IsSuccess() {
 		changeInquiryData := changeInquiryResp.GetData()
-		if changeInquiryData != nil {
-			t.Logf("Change Inquiry: subscriptionID=%s, changeStatus=%s, originSubscriptionRequest=%s",
-				changeInquiryData.SubscriptionID, changeInquiryData.SubscriptionChangeStatus, changeInquiryData.OriginSubscriptionRequest)
+		if changeInquiryData == nil {
+			t.Fatalf("Change inquiry data is nil: newSubscriptionRequest=%s, originSubscriptionRequest=%s",
+				newSubscriptionRequest, originalSubscriptionRequest)
 		}
+		t.Logf("Change Inquiry: subscriptionID=%s, changeStatus=%s, originSubscriptionRequest=%s",
+			changeInquiryData.SubscriptionID, changeInquiryData.SubscriptionChangeStatus, changeInquiryData.OriginSubscriptionRequest)
 	} else {
-		t.Logf("Change inquiry failed: newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
+		t.Fatalf("Change inquiry failed after successful change API call: newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			newSubscriptionRequest, originalSubscriptionRequest, changeInquiryResp.GetCode(), changeInquiryResp.GetMessage(), changeInquiryResp.GetData())
 	}
 
@@ -307,7 +314,7 @@ func TestSubscriptionChange_QueryOnly(t *testing.T) {
 	if err != nil {
 		t.Logf("Query error (expected if change doesn't exist): subscriptionRequest=%s, error=%v",
 			subscriptionRequest, err)
-		return
+		t.Skip("Placeholder subscription change is not configured in sandbox")
 	}
 
 	t.Logf("Change Inquiry Response: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
@@ -322,5 +329,6 @@ func TestSubscriptionChange_QueryOnly(t *testing.T) {
 	} else {
 		t.Logf("Query failed: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			subscriptionRequest, resp.GetCode(), resp.GetMessage(), resp.GetData())
+		t.Skipf("Placeholder subscription change is not available: code=%s, msg=%s", resp.GetCode(), resp.GetMessage())
 	}
 }

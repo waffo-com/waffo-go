@@ -22,11 +22,11 @@ const (
 // Matches Java SDK OrderStatus enum and Node SDK OrderStatus type.
 // Note: CAPTURE_IN_PROGRESS exists in Java/Node SDKs but is not documented in openapi.json.
 const (
-	OrderStatusPayInProgress       = "PAY_IN_PROGRESS"        // Order accepted, payment in progress
+	OrderStatusPayInProgress         = "PAY_IN_PROGRESS"        // Order accepted, payment in progress
 	OrderStatusAuthorizationRequired = "AUTHORIZATION_REQUIRED" // User authorization required (redirect to payment page)
-	OrderStatusAuthedWaitingCapture = "AUTHED_WAITING_CAPTURE" // Authorized, waiting for merchant to capture (CARD only)
-	OrderStatusPaySuccess          = "PAY_SUCCESS"             // Payment completed
-	OrderStatusOrderClose          = "ORDER_CLOSE"             // Order closed (cancelled, failed, or expired)
+	OrderStatusAuthedWaitingCapture  = "AUTHED_WAITING_CAPTURE" // Authorized, waiting for merchant to capture (CARD only)
+	OrderStatusPaySuccess            = "PAY_SUCCESS"            // Payment completed
+	OrderStatusOrderClose            = "ORDER_CLOSE"            // Order closed (cancelled, failed, or expired)
 )
 
 // Refund status values returned in REFUND_NOTIFICATION webhook.
@@ -64,32 +64,82 @@ type WebhookEvent struct {
 	EventType string `json:"eventType"`
 }
 
+// FailureReason is a map-like failure reason payload.
+//
+// Some sandbox callbacks send failure reason fields as a JSON-encoded string
+// instead of an object. Keeping this type map-like preserves existing Go
+// callers that index into the field while accepting both wire formats.
+type FailureReason map[string]interface{}
+
+// UnmarshalJSON accepts either an object or a JSON-encoded object string.
+func (r *FailureReason) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*r = nil
+		return nil
+	}
+
+	var object map[string]interface{}
+	if err := json.Unmarshal(data, &object); err == nil {
+		*r = object
+		return nil
+	}
+
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw == "" {
+		*r = nil
+		return nil
+	}
+
+	if err := json.Unmarshal([]byte(raw), &object); err == nil {
+		*r = object
+		return nil
+	}
+
+	*r = FailureReason{"message": raw}
+	return nil
+}
+
+// String returns the failure reason as a JSON object string when possible.
+func (r FailureReason) String() string {
+	if len(r) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(map[string]interface{}(r))
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
 // PaymentNotificationResult contains the result data of a payment notification.
 type PaymentNotificationResult struct {
-	PaymentRequestID string                 `json:"paymentRequestId,omitempty"`
-	MerchantOrderID  string                 `json:"merchantOrderId,omitempty"`
-	AcquiringOrderID string                 `json:"acquiringOrderId,omitempty"`
-	OrderStatus      string                 `json:"orderStatus,omitempty"`
-	OrderAction      string                 `json:"orderAction,omitempty"`
-	OrderCurrency    string                 `json:"orderCurrency,omitempty"`
-	OrderAmount      string                 `json:"orderAmount,omitempty"`
-	UserCurrency     string                 `json:"userCurrency,omitempty"`
-	FinalDealAmount  string                 `json:"finalDealAmount,omitempty"`
-	OrderDescription string                 `json:"orderDescription,omitempty"`
-	MerchantInfo     map[string]interface{} `json:"merchantInfo,omitempty"`
-	UserInfo         map[string]interface{} `json:"userInfo,omitempty"`
-	GoodsInfo        map[string]interface{} `json:"goodsInfo,omitempty"`
-	AddressInfo      map[string]interface{} `json:"addressInfo,omitempty"`
-	PaymentInfo      map[string]interface{} `json:"paymentInfo,omitempty"`
-	OrderRequestedAt string                 `json:"orderRequestedAt,omitempty"`
-	OrderExpiredAt   string                 `json:"orderExpiredAt,omitempty"`
-	OrderUpdatedAt   string                 `json:"orderUpdatedAt,omitempty"`
-	OrderCompletedAt string                 `json:"orderCompletedAt,omitempty"`
-	OrderFailedReason  map[string]interface{}       `json:"orderFailedReason,omitempty"`
-	ExtendInfo         string                       `json:"extendInfo,omitempty"`
-	SubscriptionInfo   *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
-	RefundExpiryAt     string                       `json:"refundExpiryAt,omitempty"`
-	CancelRedirectUrl  string                       `json:"cancelRedirectUrl,omitempty"`
+	PaymentRequestID  string                         `json:"paymentRequestId,omitempty"`
+	MerchantOrderID   string                         `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID  string                         `json:"acquiringOrderId,omitempty"`
+	OrderStatus       string                         `json:"orderStatus,omitempty"`
+	OrderAction       string                         `json:"orderAction,omitempty"`
+	OrderCurrency     string                         `json:"orderCurrency,omitempty"`
+	OrderAmount       string                         `json:"orderAmount,omitempty"`
+	UserCurrency      string                         `json:"userCurrency,omitempty"`
+	FinalDealAmount   string                         `json:"finalDealAmount,omitempty"`
+	OrderDescription  string                         `json:"orderDescription,omitempty"`
+	MerchantInfo      map[string]interface{}         `json:"merchantInfo,omitempty"`
+	UserInfo          map[string]interface{}         `json:"userInfo,omitempty"`
+	GoodsInfo         map[string]interface{}         `json:"goodsInfo,omitempty"`
+	AddressInfo       map[string]interface{}         `json:"addressInfo,omitempty"`
+	PaymentInfo       map[string]interface{}         `json:"paymentInfo,omitempty"`
+	OrderRequestedAt  string                         `json:"orderRequestedAt,omitempty"`
+	OrderExpiredAt    string                         `json:"orderExpiredAt,omitempty"`
+	OrderUpdatedAt    string                         `json:"orderUpdatedAt,omitempty"`
+	OrderCompletedAt  string                         `json:"orderCompletedAt,omitempty"`
+	OrderFailedReason FailureReason                  `json:"orderFailedReason,omitempty"`
+	ExtendInfo        string                         `json:"extendInfo,omitempty"`
+	SubscriptionInfo  *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
+	RefundExpiryAt    string                         `json:"refundExpiryAt,omitempty"`
+	CancelRedirectUrl string                         `json:"cancelRedirectUrl,omitempty"`
 }
 
 // PaymentNotification represents a payment webhook notification.
@@ -114,7 +164,7 @@ type RefundNotificationResult struct {
 	RefundRequestedAt      string                 `json:"refundRequestedAt,omitempty"`
 	RefundUpdatedAt        string                 `json:"refundUpdatedAt,omitempty"`
 	RefundCompletedAt      string                 `json:"refundCompletedAt,omitempty"`
-	RefundFailedReason     map[string]interface{} `json:"refundFailedReason,omitempty"`
+	RefundFailedReason     FailureReason          `json:"refundFailedReason,omitempty"`
 	UserInfo               map[string]interface{} `json:"userInfo,omitempty"`
 	RefundSource           string                 `json:"refundSource,omitempty"`
 	ExtendInfo             string                 `json:"extendInfo,omitempty"`
@@ -146,7 +196,7 @@ type SubscriptionNotificationResult struct {
 	PaymentInfo               map[string]interface{}   `json:"paymentInfo,omitempty"`
 	RequestedAt               string                   `json:"requestedAt,omitempty"`
 	UpdatedAt                 string                   `json:"updatedAt,omitempty"`
-	FailedReason              map[string]interface{}   `json:"failedReason,omitempty"`
+	FailedReason              FailureReason            `json:"failedReason,omitempty"`
 	ExtendInfo                string                   `json:"extendInfo,omitempty"`
 	SubscriptionManagementURL string                   `json:"subscriptionManagementUrl,omitempty"`
 	PaymentDetails            []map[string]interface{} `json:"paymentDetails,omitempty"`

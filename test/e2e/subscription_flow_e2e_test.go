@@ -64,7 +64,7 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 			ProductName:   "SUBSCRIPTION",
 			PayMethodType: "CREDITCARD",
 		},
-		RequestedAt:        time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		RequestedAt:               time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		NotifyURL:                 "https://httpbin.org/post",
 		SuccessRedirectURL:        TestURLs.Success,
 		FailedRedirectURL:         TestURLs.Failed,
@@ -152,7 +152,7 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 	if err != nil {
 		t.Logf("Warning: Failed to query subscription: subscriptionRequest=%s, error=%v",
 			subscriptionRequest, err)
-		return
+		t.Skip("Subscription checkout status could not be verified in sandbox")
 	}
 
 	t.Logf("Inquiry Response: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
@@ -161,9 +161,15 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 	if inquiryResp.IsSuccess() {
 		inquiryData := inquiryResp.GetData()
 		t.Logf("Subscription Status: subscriptionRequest=%s, status=%s", subscriptionRequest, inquiryData.SubscriptionStatus)
+		if inquiryData.SubscriptionStatus != "ACTIVE" {
+			t.Skipf("Subscription checkout remained %s in sandbox; cannot verify active subscription management",
+				inquiryData.SubscriptionStatus)
+		}
 	} else {
 		t.Logf("Inquiry failed: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			subscriptionRequest, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
+		t.Skipf("Subscription checkout status could not be verified: code=%s, msg=%s",
+			inquiryResp.GetCode(), inquiryResp.GetMessage())
 	}
 
 	// 4. Manage subscription (get management URL)
@@ -174,7 +180,7 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 
 	manageResp, manageErr := testWaffo.Subscription().Manage(context.Background(), manageParams, nil)
 	if manageErr != nil {
-		t.Logf("Warning: Manage subscription error: subscriptionRequest=%s, subscriptionID=%s, error=%v",
+		t.Fatalf("Manage subscription error for ACTIVE subscription: subscriptionRequest=%s, subscriptionID=%s, error=%v",
 			subscriptionRequest, data.SubscriptionID, manageErr)
 	} else {
 		t.Logf("Manage response: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
@@ -186,8 +192,8 @@ func TestSubscriptionFlow_CreateAndPay(t *testing.T) {
 				t.Logf("Management URL: %s", manageData.ManagementURL)
 			}
 		} else {
-			t.Logf("Manage not successful (may be expected depending on subscription state): code=%s, msg=%s",
-				manageResp.GetCode(), manageResp.GetMessage())
+			t.Fatalf("Manage failed for ACTIVE subscription: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
+				subscriptionRequest, data.SubscriptionID, manageResp.GetCode(), manageResp.GetMessage(), manageResp.GetData())
 		}
 	}
 }
@@ -210,7 +216,7 @@ func TestSubscriptionFlow_QueryOnly(t *testing.T) {
 	if err != nil {
 		t.Logf("Query error (expected if subscription doesn't exist): subscriptionRequest=%s, error=%v",
 			subscriptionRequest, err)
-		return
+		t.Skip("Placeholder subscription is not configured in sandbox")
 	}
 
 	t.Logf("Inquiry Response: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
@@ -222,6 +228,7 @@ func TestSubscriptionFlow_QueryOnly(t *testing.T) {
 	} else {
 		t.Logf("Query failed: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			subscriptionRequest, resp.GetCode(), resp.GetMessage(), resp.GetData())
+		t.Skipf("Placeholder subscription is not available: code=%s, msg=%s", resp.GetCode(), resp.GetMessage())
 	}
 }
 
@@ -318,7 +325,31 @@ func TestSubscriptionFlow_CancelSubscription(t *testing.T) {
 
 	base.SleepMs(2000)
 
-	// 3. Cancel subscription
+	// 3. Verify subscription is ACTIVE before attempting cancellation.
+	inquiryParams := &subscription.InquirySubscriptionParams{
+		SubscriptionRequest: subscriptionRequest,
+	}
+
+	inquiryResp, inquiryErr := testWaffo.Subscription().Inquiry(context.Background(), inquiryParams, nil)
+	if inquiryErr != nil {
+		t.Logf("Warning: Failed to query subscription before cancel: subscriptionRequest=%s, error=%v",
+			subscriptionRequest, inquiryErr)
+		t.Skip("Subscription status could not be verified before cancel in sandbox")
+	}
+	if !inquiryResp.IsSuccess() {
+		t.Skipf("Subscription status could not be verified before cancel: subscriptionRequest=%s, code=%s, msg=%s",
+			subscriptionRequest, inquiryResp.GetCode(), inquiryResp.GetMessage())
+	}
+	inquiryData := inquiryResp.GetData()
+	if inquiryData == nil {
+		t.Fatalf("Subscription inquiry data is nil before cancel: subscriptionRequest=%s", subscriptionRequest)
+	}
+	if inquiryData.SubscriptionStatus != "ACTIVE" {
+		t.Skipf("Subscription remained %s in sandbox; cannot verify cancel flow",
+			inquiryData.SubscriptionStatus)
+	}
+
+	// 4. Cancel subscription
 	cancelParams := &subscription.CancelSubscriptionParams{
 		SubscriptionID: data.SubscriptionID,
 		MerchantID:     testConfig.MerchantID,
@@ -327,9 +358,8 @@ func TestSubscriptionFlow_CancelSubscription(t *testing.T) {
 
 	cancelResp, err := testWaffo.Subscription().Cancel(context.Background(), cancelParams, nil)
 	if err != nil {
-		t.Logf("Warning: Cancel failed (may be expected): subscriptionRequest=%s, subscriptionID=%s, error=%v",
+		t.Fatalf("Cancel failed for ACTIVE subscription: subscriptionRequest=%s, subscriptionID=%s, error=%v",
 			subscriptionRequest, data.SubscriptionID, err)
-		return
 	}
 
 	t.Logf("Cancel Response: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
@@ -339,30 +369,37 @@ func TestSubscriptionFlow_CancelSubscription(t *testing.T) {
 		t.Logf("Subscription cancelled successfully: subscriptionRequest=%s, subscriptionID=%s",
 			subscriptionRequest, data.SubscriptionID)
 	} else {
-		t.Logf("Cancel failed: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
+		t.Fatalf("Cancel failed for ACTIVE subscription: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
 			subscriptionRequest, data.SubscriptionID, cancelResp.GetCode(), cancelResp.GetMessage(), cancelResp.GetData())
 	}
 
-	// 4. Verify cancellation
-	inquiryParams := &subscription.InquirySubscriptionParams{
-		SubscriptionRequest: subscriptionRequest,
-	}
-
-	inquiryResp, inquiryErr := testWaffo.Subscription().Inquiry(context.Background(), inquiryParams, nil)
-	if inquiryErr != nil {
-		t.Logf("Warning: Failed to query subscription after cancel: subscriptionRequest=%s, error=%v",
-			subscriptionRequest, inquiryErr)
-		return
-	}
-
-	t.Logf("Post-Cancel Inquiry Response: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
-		subscriptionRequest, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
-
-	if inquiryResp.IsSuccess() {
-		inquiryData := inquiryResp.GetData()
-		t.Logf("Final Subscription Status: subscriptionRequest=%s, status=%s", subscriptionRequest, inquiryData.SubscriptionStatus)
-	} else {
-		t.Logf("Post-cancel inquiry failed: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
+	// 5. Verify cancellation.
+	var finalStatus string
+	for attempt := 1; attempt <= 6; attempt++ {
+		inquiryResp, inquiryErr = testWaffo.Subscription().Inquiry(context.Background(), inquiryParams, nil)
+		if inquiryErr != nil {
+			t.Fatalf("Failed to query subscription after cancel: subscriptionRequest=%s, error=%v",
+				subscriptionRequest, inquiryErr)
+		}
+		t.Logf("Post-Cancel Inquiry Response: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
 			subscriptionRequest, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
+		if !inquiryResp.IsSuccess() {
+			t.Fatalf("Post-cancel inquiry failed: subscriptionRequest=%s, code=%s, msg=%s, data=%+v",
+				subscriptionRequest, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
+		}
+		inquiryData = inquiryResp.GetData()
+		if inquiryData == nil {
+			t.Fatalf("Post-cancel inquiry data is nil: subscriptionRequest=%s", subscriptionRequest)
+		}
+		finalStatus = inquiryData.SubscriptionStatus
+		if finalStatus == "MERCHANT_CANCELLED" {
+			t.Logf("Final Subscription Status: subscriptionRequest=%s, status=%s", subscriptionRequest, finalStatus)
+			return
+		}
+		t.Logf("Waiting for cancellation status: subscriptionRequest=%s, attempt=%d, status=%s",
+			subscriptionRequest, attempt, finalStatus)
+		time.Sleep(5 * time.Second)
 	}
+	t.Fatalf("Subscription did not reach MERCHANT_CANCELLED after cancel: subscriptionRequest=%s, finalStatus=%s",
+		subscriptionRequest, finalStatus)
 }

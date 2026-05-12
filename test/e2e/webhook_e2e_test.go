@@ -44,9 +44,9 @@ var (
 	webhookSubCreated bool
 
 	// Shared state for payment/refund tests
-	webhookPaymentRequestID  string
-	webhookAcquiringOrderID  string
-	webhookOrderPaid         bool
+	webhookPaymentRequestID string
+	webhookAcquiringOrderID string
+	webhookOrderPaid        bool
 )
 
 func setupWebhookInfra(t *testing.T) {
@@ -468,6 +468,79 @@ func waitForPaymentResultGo(t *testing.T, page playwright.Page) bool {
 	return false
 }
 
+func matchesSubscriptionNotification(subscriptionID, subscriptionRequest string) func(ReceivedNotification) bool {
+	return func(n ReceivedNotification) bool {
+		return (subscriptionID != "" && n.ResultString("subscriptionId") == subscriptionID) ||
+			(subscriptionRequest != "" && n.ResultString("subscriptionRequest") == subscriptionRequest)
+	}
+}
+
+func requireSubscriptionStatusNotification(t *testing.T, eventType, subscriptionID, subscriptionRequest, expectedStatus string, timeout time.Duration) ReceivedNotification {
+	t.Helper()
+
+	n, ok := webhookServer.WaitForNotificationMatching(eventType, timeout, func(n ReceivedNotification) bool {
+		if !matchesSubscriptionNotification(subscriptionID, subscriptionRequest)(n) {
+			return false
+		}
+		return expectedStatus == "" || n.ResultString("subscriptionStatus") == expectedStatus
+	})
+	if !ok {
+		t.Fatalf("No matching %s received: subscriptionRequest=%s, subscriptionID=%s, expectedStatus=%s",
+			eventType, subscriptionRequest, subscriptionID, expectedStatus)
+	}
+	if !n.HandlerSuccess {
+		t.Fatalf("%s handler failed: subscriptionRequest=%s, subscriptionID=%s, parsed=%+v",
+			eventType, subscriptionRequest, subscriptionID, n.Parsed)
+	}
+	return n
+}
+
+func tryAuthorizeSubscriptionChange(t *testing.T, base *BaseE2ETest) bool {
+	t.Helper()
+
+	cardSelector := "#payMethodProperties\\.card\\.pan"
+	cardCount, _ := base.Page.Locator(cardSelector).Count()
+	if cardCount > 0 {
+		return completePaymentFlow(t, base.Page)
+	}
+
+	buttons, _ := base.Page.Locator("button, a").All()
+	t.Logf("  Auth page has %d button/link candidate(s)", len(buttons))
+	for i, btn := range buttons {
+		if i >= 20 {
+			break
+		}
+		text, _ := btn.TextContent()
+		trimmed := strings.TrimSpace(text)
+		if trimmed != "" {
+			t.Logf("    auth candidate: %q", trimmed)
+		}
+	}
+
+	selectors := []string{
+		"button:has-text('確認')",
+		"button:has-text('确认')",
+		"button:has-text('Confirm')",
+		"button:has-text('Pay')",
+		"button:has-text('Submit')",
+		"button[type='submit']",
+	}
+	for _, sel := range selectors {
+		count, _ := base.Page.Locator(sel).Count()
+		if count == 0 {
+			continue
+		}
+		if err := base.Page.Locator(sel).First().Click(); err != nil {
+			t.Logf("  Failed to click auth selector %s: %v", sel, err)
+			continue
+		}
+		t.Logf("  Clicked subscription change auth selector: %s", sel)
+		return waitForPaymentResultGo(t, base.Page)
+	}
+
+	return false
+}
+
 // ==================== Test 1: Subscription Activation ====================
 
 func TestWebhook_SubscriptionActivation(t *testing.T) {
@@ -549,7 +622,6 @@ func TestWebhook_SubscriptionActivation(t *testing.T) {
 	}
 
 	webhookSubID = data.SubscriptionID
-	webhookSubCreated = true
 	t.Logf("  checkoutUrl: %s", checkoutURL)
 	t.Logf("  subscriptionId: %s", webhookSubID)
 
@@ -564,45 +636,32 @@ func TestWebhook_SubscriptionActivation(t *testing.T) {
 
 	paymentSuccess := completePaymentFlow(t, base.Page)
 	t.Logf("  Payment result: %v", paymentSuccess)
+	if !paymentSuccess {
+		t.Skipf("Subscription checkout did not complete in sandbox: subscriptionRequest=%s, subscriptionID=%s",
+			webhookSubRequest, webhookSubID)
+	}
 
 	// 3. Wait for SUBSCRIPTION_STATUS_NOTIFICATION
 	t.Log("=== Step 3: Waiting for webhook notification ===")
-	notifications := webhookServer.WaitForNotification(
+	n := requireSubscriptionStatusNotification(
+		t,
 		"SUBSCRIPTION_STATUS_NOTIFICATION",
-		1,
+		webhookSubID,
+		webhookSubRequest,
+		"ACTIVE",
 		webhookTimeout,
 	)
-
-	if len(notifications) > 0 {
-		n := notifications[0]
-		if !n.HandlerSuccess {
-			t.Errorf("Webhook handler reported failure: subscriptionRequest=%s, eventType=%s, parsed=%+v",
-				webhookSubRequest, n.EventType, n.Parsed)
-		}
-		if n.EventType != "SUBSCRIPTION_STATUS_NOTIFICATION" {
-			t.Errorf("Expected SUBSCRIPTION_STATUS_NOTIFICATION, got %s: subscriptionRequest=%s, parsed=%+v",
-				n.EventType, webhookSubRequest, n.Parsed)
-		}
-		// Verify webhook response body format
-		if n.ResponseBody != `{"message":"success"}` {
-			t.Errorf("Webhook response body format wrong: subscriptionRequest=%s, got=%s",
-				webhookSubRequest, n.ResponseBody)
-		}
-
-		if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
-			t.Logf("  subscriptionStatus: %v", result["subscriptionStatus"])
-			t.Logf("  subscriptionId: %v", result["subscriptionId"])
-			if webhookSubID == "" {
-				if sid, ok := result["subscriptionId"].(string); ok {
-					webhookSubID = sid
-				}
-			}
-		}
-
-		t.Log("SUBSCRIPTION_STATUS_NOTIFICATION received and verified!")
-	} else {
-		t.Log("No SUBSCRIPTION_STATUS_NOTIFICATION received within timeout (sandbox may be slow)")
+	if n.ResponseBody != `{"message":"success"}` {
+		t.Errorf("Webhook response body format wrong: subscriptionRequest=%s, got=%s",
+			webhookSubRequest, n.ResponseBody)
 	}
+	if webhookSubID == "" {
+		webhookSubID = n.ResultString("subscriptionId")
+	}
+	webhookSubCreated = true
+	t.Logf("  subscriptionStatus: %s", n.ResultString("subscriptionStatus"))
+	t.Logf("  subscriptionId: %s", n.ResultString("subscriptionId"))
+	t.Log("SUBSCRIPTION_STATUS_NOTIFICATION received and verified!")
 }
 
 // ==================== Test 2: Subscription Period Changed ====================
@@ -619,6 +678,18 @@ func TestWebhook_SubscriptionPeriodChanged(t *testing.T) {
 	t.Log("=== Step 1: Getting subscription management URL ===")
 	t.Logf("  subscriptionId: %s", webhookSubID)
 	t.Logf("  subscriptionRequest: %s", webhookSubRequest)
+
+	if n, ok := webhookServer.FindNotificationMatching(
+		"SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION",
+		matchesSubscriptionNotification(webhookSubID, webhookSubRequest),
+	); ok {
+		if !n.HandlerSuccess {
+			t.Fatalf("Existing period changed notification handler failed: subscriptionRequest=%s, subscriptionID=%s, parsed=%+v",
+				webhookSubRequest, webhookSubID, n.Parsed)
+		}
+		t.Log("SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION already received and verified!")
+		return
+	}
 
 	// Call manage API to get management URL with retries
 	var managementURL string
@@ -714,13 +785,17 @@ func TestWebhook_SubscriptionPeriodChanged(t *testing.T) {
 
 	// Try to find and click "simulate next period success" button
 	simulateSelectors := []string{
+		"button:has-text('下一期付款成功')",
+		"a:has-text('下一期付款成功')",
 		"button:has-text('Simulate Next Period Success')",
 		"button:has-text('simulate next period success')",
 		"button:has-text('Next Period Success')",
+		"button:has-text('Next payment succeeded')",
 		"button:has-text('Simulate Success')",
 		"a:has-text('Simulate Next Period Success')",
 		"a:has-text('simulate next period success')",
 		"a:has-text('Next Period Success')",
+		"a:has-text('Next payment succeeded')",
 		"a:has-text('Simulate Success')",
 	}
 
@@ -743,26 +818,20 @@ func TestWebhook_SubscriptionPeriodChanged(t *testing.T) {
 
 	// Wait for SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION
 	t.Log("=== Step 3: Waiting for period changed notification ===")
-	notifications := webhookServer.WaitForNotification(
+	n, ok := webhookServer.WaitForNotificationMatching(
 		"SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION",
-		1,
 		webhookTimeout,
+		matchesSubscriptionNotification(webhookSubID, webhookSubRequest),
 	)
-
-	if len(notifications) > 0 {
-		n := notifications[0]
-		if !n.HandlerSuccess {
-			t.Errorf("Webhook handler reported failure for period changed notification: subscriptionRequest=%s, subscriptionID=%s, eventType=%s, parsed=%+v",
-				webhookSubRequest, webhookSubID, n.EventType, n.Parsed)
-		}
-		if n.EventType != "SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION" {
-			t.Errorf("Expected SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION, got %s: subscriptionRequest=%s, subscriptionID=%s, parsed=%+v",
-				n.EventType, webhookSubRequest, webhookSubID, n.Parsed)
-		}
-		t.Log("SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION received and verified!")
-	} else {
-		t.Log("No SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION received within timeout")
+	if !ok {
+		t.Fatalf("No matching SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION received: subscriptionRequest=%s, subscriptionID=%s",
+			webhookSubRequest, webhookSubID)
 	}
+	if !n.HandlerSuccess {
+		t.Fatalf("Webhook handler reported failure for period changed notification: subscriptionRequest=%s, subscriptionID=%s, eventType=%s, parsed=%+v",
+			webhookSubRequest, webhookSubID, n.EventType, n.Parsed)
+	}
+	t.Log("SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION received and verified!")
 }
 
 // ==================== Test 3: Subscription Cancellation ====================
@@ -780,8 +849,6 @@ func TestWebhook_SubscriptionCancellation(t *testing.T) {
 	t.Logf("  subscriptionRequest: %s", webhookSubRequest)
 	t.Logf("  subscriptionId: %s", webhookSubID)
 
-	beforeCount := len(webhookServer.GetNotificationsByType("SUBSCRIPTION_STATUS_NOTIFICATION"))
-
 	cancelParams := &subscription.CancelSubscriptionParams{
 		SubscriptionID: webhookSubID,
 		MerchantID:     testConfig.MerchantID,
@@ -790,42 +857,29 @@ func TestWebhook_SubscriptionCancellation(t *testing.T) {
 
 	cancelResp, err := testWaffo.Subscription().Cancel(context.Background(), cancelParams, nil)
 	if err != nil {
-		t.Logf("Cancel error: subscriptionRequest=%s, subscriptionID=%s, error=%v",
+		t.Fatalf("Cancel error: subscriptionRequest=%s, subscriptionID=%s, error=%v",
 			webhookSubRequest, webhookSubID, err)
-		return
 	}
 
 	t.Logf("  Cancel response: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
 		webhookSubRequest, webhookSubID, cancelResp.GetCode(), cancelResp.GetMessage(), cancelResp.GetData())
 
 	if !cancelResp.IsSuccess() {
-		t.Logf("Cancel may have failed: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
+		t.Fatalf("Cancel failed for active subscription: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
 			webhookSubRequest, webhookSubID, cancelResp.GetCode(), cancelResp.GetMessage(), cancelResp.GetData())
-		return
 	}
 
 	// Wait for cancellation notification
 	t.Log("=== Waiting for cancellation notification ===")
-	notifications := webhookServer.WaitForNotification(
+	n := requireSubscriptionStatusNotification(
+		t,
 		"SUBSCRIPTION_STATUS_NOTIFICATION",
-		beforeCount+1,
+		webhookSubID,
+		webhookSubRequest,
+		"MERCHANT_CANCELLED",
 		webhookTimeout,
 	)
-
-	cancelFound := false
-	for _, n := range notifications {
-		if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
-			if result["subscriptionStatus"] == "MERCHANT_CANCELLED" {
-				cancelFound = true
-				t.Log("Cancellation notification received!")
-				break
-			}
-		}
-	}
-
-	if !cancelFound {
-		t.Log("No cancellation notification received within timeout")
-	}
+	t.Logf("Cancellation notification received: status=%s", n.ResultString("subscriptionStatus"))
 }
 
 // ==================== Test 4: Payment Notification ====================
@@ -845,143 +899,52 @@ func TestWebhook_PaymentNotification(t *testing.T) {
 	}
 	defer base.Teardown()
 
-	// 1. Create one-time order with webhook URL
+	// 1. Create and pay one-time DANA order with webhook URL
 	webhookPaymentRequestID = fmt.Sprintf("e2e_wh_pay_%d", time.Now().UnixMilli())
 	merchantOrderID := fmt.Sprintf("WH_PAY_E2E_%d", time.Now().UnixMilli())
 	notifyURL := webhookNgrokURL + "/webhook"
 
-	t.Log("=== Step 1: Creating one-time order ===")
+	t.Log("=== Step 1: Creating and paying DANA one-time order ===")
 	t.Logf("  paymentRequestId: %s", webhookPaymentRequestID)
 	t.Logf("  notifyUrl: %s", notifyURL)
 
-	createParams := &order.CreateOrderParams{
-		PaymentRequestID:   webhookPaymentRequestID,
-		MerchantOrderID:    merchantOrderID,
-		OrderCurrency:      "HKD",
-		OrderAmount:        "100.00",
-		OrderDescription:   "Webhook Payment E2E Test",
-		NotifyURL:          notifyURL,
-		SuccessRedirectURL: TestURLs.Success,
-		FailedRedirectURL:  TestURLs.Failed,
-		CancelRedirectURL:  TestURLs.Cancel,
-		OrderRequestedAt:   time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
-		MerchantInfo: &order.MerchantInfo{
-			MerchantID: testConfig.MerchantID,
-		},
-		UserInfo: &order.UserInfo{
-			UserID:       fmt.Sprintf("wh_pay_user_%d", time.Now().Unix()),
-			UserEmail:    "webhook_pay_e2e@test.com",
-			UserTerminal: "WEB",
-		},
-		GoodsInfo: &order.GoodsInfo{
-			GoodsID:       "WH_PAY_GOODS",
-			GoodsName:     "Webhook Payment E2E Product",
-			GoodsCategory: "GOODS",
-			GoodsURL:      "https://example.com/webhook-pay-test",
-			GoodsQuantity: 1,
-		},
-		PaymentInfo: &order.PaymentInfo{
-			ProductName:   "ONE_TIME_PAYMENT",
-			PayMethodType: "CREDITCARD",
-		},
-	}
-
-	createResp, err := testWaffo.Order().Create(context.Background(), createParams, nil)
-	if err != nil {
-		t.Fatalf("Failed to create order: paymentRequestID=%s, error=%v", webhookPaymentRequestID, err)
-	}
-
-	t.Logf("  Response: code=%s, msg=%s, data=%+v", createResp.GetCode(), createResp.GetMessage(), createResp.GetData())
-
-	if !createResp.IsSuccess() {
-		t.Fatalf("Create order failed: paymentRequestID=%s, code=%s, msg=%s, data=%+v",
-			webhookPaymentRequestID, createResp.GetCode(), createResp.GetMessage(), createResp.GetData())
-	}
-
-	createData := createResp.GetData()
-	if createData == nil {
-		t.Fatalf("Order data is nil: paymentRequestID=%s, code=%s, msg=%s",
-			webhookPaymentRequestID, createResp.GetCode(), createResp.GetMessage())
-	}
-
-	webhookAcquiringOrderID = createData.AcquiringOrderID
-	t.Logf("  acquiringOrderId: %s", webhookAcquiringOrderID)
-
-	checkoutURL := createData.FetchRedirectURL()
-	if checkoutURL == "" {
-		t.Fatalf("Checkout URL is empty: paymentRequestID=%s, data=%+v", webhookPaymentRequestID, createData)
-	}
-	t.Logf("  checkoutUrl: %s", checkoutURL)
-
-	// 2. Complete payment via Playwright (standard test card, no 3DS)
-	t.Log("=== Step 2: Completing payment ===")
-	if err := base.NavigateTo(checkoutURL); err != nil {
-		t.Fatalf("Failed to navigate to checkout: %v", err)
-	}
-
-	base.WaitForPageLoad()
-	base.SleepMs(2000)
-
-	paymentSuccess := completeSimplePaymentFlow(t, base.Page)
-	t.Logf("  Payment flow result: %v", paymentSuccess)
-
-	// Verify payment success by querying order with retries
-	base.SleepMs(3000)
-	for i := 0; i < 5; i++ {
-		inquiryParams := &order.InquiryOrderParams{
-			PaymentRequestID: webhookPaymentRequestID,
-		}
-		inquiryResp, inquiryErr := testWaffo.Order().Inquiry(context.Background(), inquiryParams, nil)
-		if inquiryErr != nil {
-			t.Logf("  Order inquiry error (attempt %d): paymentRequestID=%s, error=%v",
-				i+1, webhookPaymentRequestID, inquiryErr)
-		} else if inquiryResp.IsSuccess() {
-			inquiryData := inquiryResp.GetData()
-			if inquiryData != nil {
-				t.Logf("  Order status (attempt %d): paymentRequestID=%s, status=%s",
-					i+1, webhookPaymentRequestID, inquiryData.OrderStatus)
-				if inquiryData.OrderStatus == "PAY_SUCCESS" {
-					webhookOrderPaid = true
-					break
-				}
-			}
-		} else {
-			t.Logf("  Order inquiry failed (attempt %d): paymentRequestID=%s, code=%s, msg=%s, data=%+v",
-				i+1, webhookPaymentRequestID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
-		}
-		time.Sleep(2 * time.Second)
-	}
-
-	// 3. Wait for PAYMENT_NOTIFICATION
-	t.Log("=== Step 3: Waiting for PAYMENT_NOTIFICATION ===")
-	notifications := webhookServer.WaitForNotification(
-		"PAYMENT_NOTIFICATION",
-		1,
-		webhookTimeout,
+	webhookAcquiringOrderID = createPaidDANAOrder(
+		t,
+		base,
+		webhookPaymentRequestID,
+		merchantOrderID,
+		"50000",
+		"Webhook Payment E2E Test",
+		notifyURL,
 	)
+	webhookOrderPaid = true
 
-	if len(notifications) > 0 {
-		n := notifications[0]
-		if !n.HandlerSuccess {
-			t.Errorf("Payment notification handler reported failure: paymentRequestID=%s, eventType=%s, parsed=%+v",
-				webhookPaymentRequestID, n.EventType, n.Parsed)
+	// 2. Wait for PAYMENT_NOTIFICATION for this order.
+	t.Log("=== Step 2: Waiting for matching PAYMENT_NOTIFICATION ===")
+	n, ok := webhookServer.WaitForNotificationMatching("PAYMENT_NOTIFICATION", webhookTimeout, func(n ReceivedNotification) bool {
+		result, ok := n.Parsed["result"].(map[string]interface{})
+		if !ok {
+			return false
 		}
-		if n.EventType != "PAYMENT_NOTIFICATION" {
-			t.Errorf("Expected PAYMENT_NOTIFICATION, got %s: paymentRequestID=%s, parsed=%+v",
-				n.EventType, webhookPaymentRequestID, n.Parsed)
-		}
-
-		if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
-			t.Logf("  orderStatus: %v", result["orderStatus"])
-			if v, ok := result["acquiringOrderId"]; ok {
-				t.Logf("  acquiringOrderId: %v", v)
-			}
-		}
-
-		t.Log("PAYMENT_NOTIFICATION received and verified!")
-	} else {
-		t.Log("No PAYMENT_NOTIFICATION received within timeout (sandbox may not send for one-time orders)")
+		return result["paymentRequestId"] == webhookPaymentRequestID ||
+			result["acquiringOrderId"] == webhookAcquiringOrderID
+	})
+	if !ok {
+		t.Fatalf("No matching PAYMENT_NOTIFICATION received: paymentRequestID=%s, acquiringOrderID=%s",
+			webhookPaymentRequestID, webhookAcquiringOrderID)
 	}
+	if !n.HandlerSuccess {
+		t.Errorf("Payment notification handler reported failure: paymentRequestID=%s, eventType=%s, parsed=%+v",
+			webhookPaymentRequestID, n.EventType, n.Parsed)
+	}
+	if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
+		t.Logf("  orderStatus: %v", result["orderStatus"])
+		t.Logf("  acquiringOrderId: %v", result["acquiringOrderId"])
+		if result["orderStatus"] != "PAY_SUCCESS" {
+			t.Errorf("Expected PAY_SUCCESS payment notification, got %v", result["orderStatus"])
+		}
+	}
+	t.Log("PAYMENT_NOTIFICATION received and verified!")
 }
 
 // ==================== Test 5: Refund Notification ====================
@@ -1008,60 +971,56 @@ func TestWebhook_RefundNotification(t *testing.T) {
 	refundParams := &order.RefundOrderParams{
 		AcquiringOrderID: webhookAcquiringOrderID,
 		RefundRequestID:  refundRequestID,
-		RefundAmount:     "30.00",
+		RefundAmount:     "5000",
 		RefundReason:     "Webhook E2E refund test",
 		NotifyURL:        notifyURL,
 	}
 
 	refundResp, err := testWaffo.Order().Refund(context.Background(), refundParams, nil)
 	if err != nil {
-		t.Logf("Refund API error: paymentRequestID=%s, refundRequestID=%s, error=%v",
+		t.Fatalf("Refund API error for paid DANA order: paymentRequestID=%s, refundRequestID=%s, error=%v",
 			webhookPaymentRequestID, refundRequestID, err)
-		t.Skip("Refund API call failed")
 	}
 
 	t.Logf("  Refund response: paymentRequestID=%s, refundRequestID=%s, code=%s, msg=%s, data=%+v",
 		webhookPaymentRequestID, refundRequestID, refundResp.GetCode(), refundResp.GetMessage(), refundResp.GetData())
 
 	if !refundResp.IsSuccess() {
-		t.Logf("Refund failed: paymentRequestID=%s, refundRequestID=%s, code=%s, msg=%s, data=%+v",
+		t.Fatalf("Refund failed for paid DANA order: paymentRequestID=%s, refundRequestID=%s, code=%s, msg=%s, data=%+v",
 			webhookPaymentRequestID, refundRequestID, refundResp.GetCode(), refundResp.GetMessage(), refundResp.GetData())
-		return
 	}
 
 	refundData := refundResp.GetData()
-	if refundData != nil {
-		t.Logf("  refundStatus: %s", refundData.RefundStatus)
-		t.Logf("  acquiringRefundOrderId: %s", refundData.AcquiringRefundOrderID)
+	if refundData == nil {
+		t.Fatalf("Refund data is nil: paymentRequestID=%s, refundRequestID=%s", webhookPaymentRequestID, refundRequestID)
 	}
+	acquiringRefundOrderID := refundData.AcquiringRefundOrderID
+	t.Logf("  refundStatus: %s", refundData.RefundStatus)
+	t.Logf("  acquiringRefundOrderId: %s", acquiringRefundOrderID)
 
-	// 2. Wait for REFUND_NOTIFICATION
-	t.Log("=== Step 2: Waiting for REFUND_NOTIFICATION ===")
-	notifications := webhookServer.WaitForNotification(
-		"REFUND_NOTIFICATION",
-		1,
-		webhookTimeout,
-	)
-
-	if len(notifications) > 0 {
-		n := notifications[0]
-		if !n.HandlerSuccess {
-			t.Errorf("Refund notification handler reported failure: paymentRequestID=%s, refundRequestID=%s, eventType=%s, parsed=%+v",
-				webhookPaymentRequestID, refundRequestID, n.EventType, n.Parsed)
+	// 2. Wait for REFUND_NOTIFICATION for this refund.
+	t.Log("=== Step 2: Waiting for matching REFUND_NOTIFICATION ===")
+	n, ok := webhookServer.WaitForNotificationMatching("REFUND_NOTIFICATION", webhookTimeout, func(n ReceivedNotification) bool {
+		result, ok := n.Parsed["result"].(map[string]interface{})
+		if !ok {
+			return false
 		}
-		if n.EventType != "REFUND_NOTIFICATION" {
-			t.Errorf("Expected REFUND_NOTIFICATION, got %s: paymentRequestID=%s, refundRequestID=%s, parsed=%+v",
-				n.EventType, webhookPaymentRequestID, refundRequestID, n.Parsed)
-		}
-
-		if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
-			t.Logf("  refundStatus: %v", result["refundStatus"])
-		}
-
-		t.Log("REFUND_NOTIFICATION received and verified!")
-	} else {
-		t.Log("No REFUND_NOTIFICATION received within timeout (sandbox may not send refund notifications)")
+		return result["refundRequestId"] == refundRequestID ||
+			result["acquiringRefundOrderId"] == acquiringRefundOrderID
+	})
+	if !ok {
+		t.Fatalf("No matching REFUND_NOTIFICATION received: paymentRequestID=%s, refundRequestID=%s, acquiringRefundOrderID=%s",
+			webhookPaymentRequestID, refundRequestID, acquiringRefundOrderID)
 	}
+	if !n.HandlerSuccess {
+		t.Errorf("Refund notification handler reported failure: paymentRequestID=%s, refundRequestID=%s, eventType=%s, parsed=%+v",
+			webhookPaymentRequestID, refundRequestID, n.EventType, n.Parsed)
+	}
+	if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
+		t.Logf("  refundStatus: %v", result["refundStatus"])
+		t.Logf("  acquiringRefundOrderId: %v", result["acquiringRefundOrderId"])
+	}
+	t.Log("REFUND_NOTIFICATION received and verified!")
 }
 
 // ==================== Test 5.5: Subscription Change ====================
@@ -1126,27 +1085,23 @@ func TestWebhook_SubscriptionChange(t *testing.T) {
 	createResp, err := testWaffo.Subscription().Create(context.Background(), createParams, nil)
 	if err != nil {
 		t.Logf("[SubscriptionChange E2E] Create subscription error: changeSubRequest=%s, error=%v", changeSubRequest, err)
-		t.Skip("Skipping due to create subscription error")
-		return
+		t.Skip("Subscription change prerequisite could not be created in sandbox")
 	}
 	if !createResp.IsSuccess() {
 		t.Logf("[SubscriptionChange E2E] Create subscription failed: changeSubRequest=%s, code=%s, msg=%s",
 			changeSubRequest, createResp.GetCode(), createResp.GetMessage())
-		t.Skip("Skipping due to create subscription failure")
-		return
+		t.Skip("Subscription change prerequisite could not be created in sandbox")
 	}
 
 	createData := createResp.GetData()
 	if createData == nil {
 		t.Skip("[SubscriptionChange E2E] Create subscription data is nil")
-		return
 	}
 
 	origSubID := createData.SubscriptionID
 	checkoutURL := createData.FetchRedirectURL()
 	if checkoutURL == "" {
 		t.Skip("[SubscriptionChange E2E] No checkout URL available")
-		return
 	}
 
 	t.Logf("  origSubID: %s", origSubID)
@@ -1158,23 +1113,29 @@ func TestWebhook_SubscriptionChange(t *testing.T) {
 	if err := activationBase.Setup(); err != nil {
 		t.Logf("[SubscriptionChange E2E] Browser setup failed: %v", err)
 		t.Skip("Skipping due to browser setup failure")
-		return
 	}
 	defer activationBase.Teardown()
 
 	if err := activationBase.NavigateTo(checkoutURL); err != nil {
 		t.Logf("[SubscriptionChange E2E] Navigate to checkout failed: changeSubRequest=%s, error=%v", changeSubRequest, err)
-		return
+		t.Skip("Subscription change activation checkout could not be opened in sandbox")
 	}
 	activationBase.WaitForPageLoad()
 	activationBase.SleepMs(3000)
-	// Capture count BEFORE payment so we can wait for the activation notification
-	beforeActivationCount := len(webhookServer.GetNotificationsByType("SUBSCRIPTION_STATUS_NOTIFICATION"))
 	activated := completePaymentFlow(t, activationBase.Page)
 	t.Logf("  Activation result: %v", activated)
-
-	// Wait for activation webhook
-	webhookServer.WaitForNotification("SUBSCRIPTION_STATUS_NOTIFICATION", beforeActivationCount+1, webhookTimeout)
+	if !activated {
+		t.Skipf("Subscription change prerequisite did not activate in sandbox: subscriptionRequest=%s, subscriptionID=%s",
+			changeSubRequest, origSubID)
+	}
+	requireSubscriptionStatusNotification(
+		t,
+		"SUBSCRIPTION_STATUS_NOTIFICATION",
+		origSubID,
+		changeSubRequest,
+		"ACTIVE",
+		webhookTimeout,
+	)
 
 	// ==================== Step 3: Call subscription change API ====================
 	t.Log("=== [SubscriptionChange E2E] Step 3: Calling subscription change API ===")
@@ -1226,70 +1187,74 @@ func TestWebhook_SubscriptionChange(t *testing.T) {
 
 	changeResp, err := testWaffo.Subscription().Change(context.Background(), changeParams, nil)
 	if err != nil {
-		t.Logf("[SubscriptionChange E2E] Change API error: newSubRequest=%s, originSubRequest=%s, error=%v",
+		t.Fatalf("[SubscriptionChange E2E] Change API error after ACTIVE prerequisite: newSubRequest=%s, originSubRequest=%s, error=%v",
 			newSubRequest, changeSubRequest, err)
-		return
 	}
 	t.Logf("  Change response: code=%s, msg=%s, data=%+v", changeResp.GetCode(), changeResp.GetMessage(), changeResp.GetData())
 
 	if !changeResp.IsSuccess() {
-		t.Logf("[SubscriptionChange E2E] Change API failed: newSubRequest=%s, originSubRequest=%s, code=%s, msg=%s, data=%+v",
+		t.Fatalf("[SubscriptionChange E2E] Change API failed after ACTIVE prerequisite: newSubRequest=%s, originSubRequest=%s, code=%s, msg=%s, data=%+v",
 			newSubRequest, changeSubRequest, changeResp.GetCode(), changeResp.GetMessage(), changeResp.GetData())
-		t.Log("This may be normal if subscription is not ACTIVE yet in sandbox")
-		return
 	}
 
 	changeData := changeResp.GetData()
-	if changeData != nil {
-		t.Logf("  subscriptionChangeStatus: %s", changeData.SubscriptionChangeStatus)
-		t.Logf("  subscriptionAction: %s", changeData.SubscriptionAction)
+	if changeData == nil {
+		t.Fatalf("[SubscriptionChange E2E] Change subscription data is nil: newSubRequest=%s, code=%s, msg=%s",
+			newSubRequest, changeResp.GetCode(), changeResp.GetMessage())
+	}
 
-		// ==================== Step 4: Handle AUTHORIZATION_REQUIRED ====================
-		if changeData.SubscriptionChangeStatus == "AUTHORIZATION_REQUIRED" {
-			t.Log("=== [SubscriptionChange E2E] Step 4: Handling AUTHORIZATION_REQUIRED ===")
-			authURL := changeData.FetchRedirectURL()
-			if authURL != "" {
-				t.Logf("  authURL: %s", authURL)
-				authBase := &BaseE2ETest{}
-				if err := authBase.Setup(); err == nil {
-					defer authBase.Teardown()
-					if err := authBase.NavigateTo(authURL); err == nil {
-						authBase.WaitForPageLoad()
-						authBase.SleepMs(3000)
-						authSuccess := completePaymentFlow(t, authBase.Page)
-						t.Logf("  Auth result: %v", authSuccess)
-					}
-				}
-			}
+	t.Logf("  subscriptionChangeStatus: %s", changeData.SubscriptionChangeStatus)
+	t.Logf("  subscriptionAction: %s", changeData.SubscriptionAction)
+
+	// ==================== Step 4: Handle AUTHORIZATION_REQUIRED ====================
+	if changeData.SubscriptionChangeStatus == "AUTHORIZATION_REQUIRED" {
+		t.Log("=== [SubscriptionChange E2E] Step 4: Handling AUTHORIZATION_REQUIRED ===")
+		authURL := changeData.FetchRedirectURL()
+		if authURL == "" {
+			t.Skipf("Subscription change requires authorization but no auth URL was returned: newSubRequest=%s",
+				newSubRequest)
+		}
+		t.Logf("  authURL: %s", authURL)
+		authBase := &BaseE2ETest{}
+		if err := authBase.Setup(); err != nil {
+			t.Skipf("Subscription change auth browser setup failed: %v", err)
+		}
+		defer authBase.Teardown()
+		if err := authBase.NavigateTo(authURL); err != nil {
+			t.Skipf("Subscription change auth page could not be opened in sandbox: newSubRequest=%s, error=%v",
+				newSubRequest, err)
+		}
+		authBase.WaitForPageLoad()
+		authBase.SleepMs(3000)
+		authSuccess := tryAuthorizeSubscriptionChange(t, authBase)
+		t.Logf("  Auth result: %v", authSuccess)
+		if !authSuccess {
+			t.Skipf("Subscription change auth page did not expose a supported authorization control: newSubRequest=%s",
+				newSubRequest)
 		}
 	}
 
 	// ==================== Step 5: Wait for SUBSCRIPTION_CHANGE_NOTIFICATION ====================
 	t.Log("=== [SubscriptionChange E2E] Step 5: Waiting for SUBSCRIPTION_CHANGE_NOTIFICATION ===")
-	changeNotifications := webhookServer.WaitForNotification(
-		"SUBSCRIPTION_CHANGE_NOTIFICATION", 1, webhookTimeout,
+	n, ok := webhookServer.WaitForNotificationMatching(
+		"SUBSCRIPTION_CHANGE_NOTIFICATION",
+		webhookTimeout,
+		func(n ReceivedNotification) bool {
+			return n.ResultString("subscriptionRequest") == newSubRequest ||
+				n.ResultString("originSubscriptionRequest") == changeSubRequest
+		},
 	)
-
-	if len(changeNotifications) > 0 {
-		n := changeNotifications[0]
-		if !n.HandlerSuccess {
-			t.Errorf("[SubscriptionChange E2E] Handler reported failure: newSubRequest=%s, originSubRequest=%s, eventType=%s, parsed=%+v",
-				newSubRequest, changeSubRequest, n.EventType, n.Parsed)
-		}
-		if n.EventType != "SUBSCRIPTION_CHANGE_NOTIFICATION" {
-			t.Errorf("[SubscriptionChange E2E] Expected SUBSCRIPTION_CHANGE_NOTIFICATION, got %s: newSubRequest=%s",
-				n.EventType, newSubRequest)
-		}
-		if result, ok := n.Parsed["result"].(map[string]interface{}); ok {
-			t.Logf("  subscriptionChangeStatus: %v", result["subscriptionChangeStatus"])
-			t.Logf("  subscriptionRequest: %v", result["subscriptionRequest"])
-		}
-		t.Log("[SubscriptionChange E2E] SUBSCRIPTION_CHANGE_NOTIFICATION received and verified!")
-	} else {
-		t.Logf("[SubscriptionChange E2E] No SUBSCRIPTION_CHANGE_NOTIFICATION received within timeout: newSubRequest=%s, originSubRequest=%s",
+	if !ok {
+		t.Fatalf("[SubscriptionChange E2E] No matching SUBSCRIPTION_CHANGE_NOTIFICATION received: newSubRequest=%s, originSubRequest=%s",
 			newSubRequest, changeSubRequest)
-		t.Log("This may be normal if sandbox did not trigger the notification in time")
 	}
+	if !n.HandlerSuccess {
+		t.Fatalf("[SubscriptionChange E2E] Handler reported failure: newSubRequest=%s, originSubRequest=%s, eventType=%s, parsed=%+v",
+			newSubRequest, changeSubRequest, n.EventType, n.Parsed)
+	}
+	t.Logf("  subscriptionChangeStatus: %s", n.ResultString("subscriptionChangeStatus"))
+	t.Logf("  subscriptionRequest: %s", n.ResultString("subscriptionRequest"))
+	t.Log("[SubscriptionChange E2E] SUBSCRIPTION_CHANGE_NOTIFICATION received and verified!")
 }
 
 // ==================== Test 6: Cleanup ====================

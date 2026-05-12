@@ -101,6 +101,28 @@ func (s *WebhookTestServer) GetNotificationsByType(eventType string) []ReceivedN
 	return result
 }
 
+func (n ReceivedNotification) ResultString(field string) string {
+	result, ok := n.Parsed["result"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	value, ok := result[field].(string)
+	if !ok {
+		return ""
+	}
+	return value
+}
+
+func (s *WebhookTestServer) FindNotificationMatching(eventType string, match func(ReceivedNotification) bool) (ReceivedNotification, bool) {
+	matching := s.GetNotificationsByType(eventType)
+	for _, n := range matching {
+		if match(n) {
+			return n, true
+		}
+	}
+	return ReceivedNotification{}, false
+}
+
 // WaitForNotification waits for a specific number of notifications of a given event type.
 func (s *WebhookTestServer) WaitForNotification(eventType string, count int, timeout time.Duration) []ReceivedNotification {
 	deadline := time.Now().Add(timeout)
@@ -122,6 +144,26 @@ func (s *WebhookTestServer) WaitForNotification(eventType string, count int, tim
 	fmt.Printf("[WebhookServer] Timeout waiting for %s: got %d/%d\n",
 		eventType, len(matching), count)
 	return matching
+}
+
+// WaitForNotificationMatching waits for the first notification matching event type and predicate.
+func (s *WebhookTestServer) WaitForNotificationMatching(eventType string, timeout time.Duration, match func(ReceivedNotification) bool) (ReceivedNotification, bool) {
+	deadline := time.Now().Add(timeout)
+	pollInterval := 2 * time.Second
+
+	for time.Now().Before(deadline) {
+		if n, ok := s.FindNotificationMatching(eventType, match); ok {
+			return n, true
+		}
+
+		matching := s.GetNotificationsByType(eventType)
+		elapsed := time.Since(time.Now().Add(-timeout + time.Until(deadline)))
+		fmt.Printf("[WebhookServer] Waiting for matching %s among %d notification(s), elapsed: %ds\n",
+			eventType, len(matching), int(elapsed.Seconds()))
+		time.Sleep(pollInterval)
+	}
+
+	return ReceivedNotification{}, false
 }
 
 // PrintReport prints a summary report of all received notifications.

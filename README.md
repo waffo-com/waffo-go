@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README.md @ commit 1160423 -->
+<!-- Synced with waffo-sdk/README.md @ commit d483eba -->
 
 <!-- Synced with waffo-sdk/README.md -->
 
@@ -391,9 +391,9 @@ resp, err := client.Subscription().Change(ctx, &subscription.ChangeSubscriptionP
     NotifyURL:                 "https://your-site.com/webhook/subscription",
     ProductInfoList: []subscription.SubscriptionChangeProductInfo{
         {
-            Description:    "Yearly Premium Subscription",
-            PeriodType:     "YEAR",
-            PeriodInterval: "1",
+            Description:    "Annual Premium Subscription (12 months)",
+            PeriodType:     "MONTHLY",
+            PeriodInterval: "12",
             Amount:         "999.00",
         },
     },

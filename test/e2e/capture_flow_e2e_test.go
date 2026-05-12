@@ -28,7 +28,8 @@ import (
 // - Capture response status is CAPTURE_IN_PROGRESS (async settlement)
 //
 // Run with:
-//   go test -tags=e2e ./test/e2e/... -run TestCaptureFlow -v -timeout 180s
+//
+//	go test -tags=e2e ./test/e2e/... -run TestCaptureFlow -v -timeout 180s
 func TestCaptureFlow_ManualCapture(t *testing.T) {
 	if testWaffo == nil {
 		t.Skip("Waffo client not initialized - config missing")
@@ -46,13 +47,13 @@ func TestCaptureFlow_ManualCapture(t *testing.T) {
 	merchantOrderID := fmt.Sprintf("E2E_CAPTURE_%d", time.Now().UnixMilli())
 
 	createParams := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "10.00",
-		OrderDescription: "E2E Manual Capture Test",
-		OrderRequestedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
-		NotifyURL:        "https://httpbin.org/post",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "10.00",
+		OrderDescription:   "E2E Manual Capture Test",
+		OrderRequestedAt:   time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		NotifyURL:          "https://httpbin.org/post",
 		SuccessRedirectURL: TestURLs.Success,
 		FailedRedirectURL:  TestURLs.Failed,
 		CancelRedirectURL:  TestURLs.Cancel,
@@ -194,8 +195,7 @@ func TestCaptureFlow_ManualCapture(t *testing.T) {
 
 	// If sandbox doesn't support manualCapture, skip capture step
 	if finalStatus == core.OrderStatusPaySuccess {
-		t.Log("SKIP: Sandbox went straight to PAY_SUCCESS, capture not applicable.")
-		return
+		t.Skip("Sandbox went straight to PAY_SUCCESS, capture not applicable")
 	}
 
 	if finalStatus != core.OrderStatusAuthedWaitingCapture {
@@ -235,13 +235,19 @@ func TestCaptureFlow_ManualCapture(t *testing.T) {
 		AcquiringOrderID: acquiringOrderID,
 	}
 
-	finalInquiryResp, _ := testWaffo.Order().Inquiry(context.Background(), finalInquiryParams, nil)
-	if finalInquiryResp != nil && finalInquiryResp.IsSuccess() {
-		finalData := finalInquiryResp.GetData()
-		if finalData != nil {
-			t.Logf("Final order status after capture: %s", finalData.OrderStatus)
-		}
-	} else if finalInquiryResp != nil {
-		t.Logf("Final inquiry: code=%s, msg=%s", finalInquiryResp.GetCode(), finalInquiryResp.GetMessage())
+	finalInquiryResp, finalInquiryErr := testWaffo.Order().Inquiry(context.Background(), finalInquiryParams, nil)
+	if finalInquiryErr != nil {
+		t.Fatalf("Final inquiry after capture failed: paymentRequestID=%s, acquiringOrderID=%s, error=%v",
+			paymentRequestID, acquiringOrderID, finalInquiryErr)
 	}
+	if !finalInquiryResp.IsSuccess() {
+		t.Fatalf("Final inquiry after capture was not successful: paymentRequestID=%s, acquiringOrderID=%s, code=%s, msg=%s, data=%+v",
+			paymentRequestID, acquiringOrderID, finalInquiryResp.GetCode(), finalInquiryResp.GetMessage(), finalInquiryResp.GetData())
+	}
+	finalData := finalInquiryResp.GetData()
+	if finalData == nil {
+		t.Fatalf("Final inquiry data after capture is nil: paymentRequestID=%s, acquiringOrderID=%s",
+			paymentRequestID, acquiringOrderID)
+	}
+	t.Logf("Final order status after capture: %s", finalData.OrderStatus)
 }

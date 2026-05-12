@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README_CN.md @ commit 1160423 -->
+<!-- Synced with waffo-sdk/README_CN.md @ commit d483eba -->
 
 <!-- Synced with waffo-sdk/README_CN.md -->
 
@@ -50,6 +50,7 @@
 - [错误处理](#错误处理)
 - [支持](#支持)
 - [许可证](#许可证)
+- [配置 DNS 缓存 TTL](#配置-dns-缓存-ttl)
 
 ## 环境要求
 
@@ -617,6 +618,43 @@ handler := client.Webhook().
 | `GOOGLEPAY` | Google Pay | GOOGLEPAY |
 
 > **注意**: 可用的 `ProductName`、`PayMethodType`、`PayMethodName` 值，商户可登录 [Waffo Portal](https://dashboard.waffo.com) 查看已签约的支付方式（首页 → 服务 → 收单）。
+
+## 配置 DNS 缓存 TTL
+
+Waffo API 的 IP 地址不保证是固定的。为保障高可用性，Waffo 采用多网关架构并支持自动容灾切换——当某一网关服务商发生故障时，DNS 记录会更新以将流量路由至健康的网关。请确保您的 DNS 缓存配置不会过长地缓存 DNS 记录——否则在容灾切换期间，您的应用会继续向不可用的网关发送请求，直到缓存过期或进程重启。
+
+**建议 TTL：60 秒或更短。**
+
+### 应用层
+
+**Java**：JVM 默认的 DNS 缓存 TTL 可能设置为**永久**（`-1`），即 IP 一旦解析就永不刷新。这是最常见的问题来源。通过设置安全属性 `networkaddress.cache.ttl` 来修改 TTL：
+
+```java
+// 设置 DNS 缓存 TTL 为 60 秒
+java.security.Security.setProperty("networkaddress.cache.ttl", "60");
+```
+
+详见 [Java Networking Properties 文档](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/net/doc-files/net-properties.html)。
+
+**Node.js**：Node.js 默认**不缓存** DNS 结果（每次请求都触发 DNS 查询）。如果您使用了 DNS 缓存库（如 `cacheable-lookup`），请确保 TTL 设置为 **60 秒或更短**。
+
+**Go**：Go 的 `net` 包默认**不缓存** DNS 结果。如果您使用了 DNS 缓存库（如 `dnscache`），请确保刷新间隔设置为 **60 秒或更短**。
+
+### 基础设施 / 网关层
+
+如果您的请求通过反向代理或负载均衡器访问 Waffo API，还需检查其 DNS 缓存行为——这与应用代码的配置是独立的：
+
+- **Nginx**：默认情况下，Nginx **仅在启动时**解析 DNS 并永久缓存结果。您必须显式配置 `resolver` 并设置 TTL：
+  ```nginx
+  resolver 8.8.8.8 valid=60s;
+  set $backend "api.waffo.com";
+  proxy_pass https://$backend;
+  ```
+  注意：`proxy_pass` 中必须使用变量才能触发重新解析；硬编码的主机名只会解析一次。
+
+- **AWS ALB / 云负载均衡器**：大多数云负载均衡器会自动处理 DNS 重新解析。请查阅您的云服务商文档进行确认。
+
+- **CDN / API 网关**：如果您通过 Cloudflare、AWS API Gateway 或类似服务路由流量，请确保其 DNS TTL 设置符合您的需求。
 
 ## 处理新增 API 字段 (ExtraParams)
 

@@ -6,6 +6,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -42,20 +43,20 @@ func TestMain(m *testing.M) {
 		fmt.Println("Skipping E2E tests: Waffo config not found")
 		fmt.Println("Expected config file at: test/e2e/application-test.yml")
 		fmt.Println("Or set WAFFO_E2E_CONFIG environment variable")
-		return
+		os.Exit(m.Run())
 	}
 
 	var err error
 	testWaffo, err = testConfig.CreateWaffoClient()
 	if err != nil {
 		fmt.Printf("Failed to create Waffo client: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	fmt.Printf("Waffo client initialized with merchant: %s\n", testConfig.MerchantID)
 
 	// Run tests
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestPaymentFlow_CreateOrderAndOpenCheckout(t *testing.T) {
@@ -74,16 +75,16 @@ func TestPaymentFlow_CreateOrderAndOpenCheckout(t *testing.T) {
 	merchantOrderID := fmt.Sprintf("E2E_ORDER_%d", time.Now().UnixMilli())
 
 	params := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "10.00",
-		OrderDescription: "E2E Test Order",
-		NotifyURL:        "https://httpbin.org/post",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "10.00",
+		OrderDescription:   "E2E Test Order",
+		NotifyURL:          "https://httpbin.org/post",
 		SuccessRedirectURL: TestURLs.Success,
 		FailedRedirectURL:  TestURLs.Failed,
 		CancelRedirectURL:  TestURLs.Cancel,
-		OrderRequestedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		OrderRequestedAt:   time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		MerchantInfo: &order.MerchantInfo{
 			MerchantID: testConfig.MerchantID,
 		},
@@ -155,16 +156,16 @@ func TestPaymentFlow_CreditCardPayment(t *testing.T) {
 	merchantOrderID := fmt.Sprintf("E2E_CARD_%d", time.Now().UnixMilli())
 
 	params := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "10.00",
-		OrderDescription: "E2E Credit Card Test",
-		NotifyURL:        "https://httpbin.org/post",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "10.00",
+		OrderDescription:   "E2E Credit Card Test",
+		NotifyURL:          "https://httpbin.org/post",
 		SuccessRedirectURL: TestURLs.Success,
 		FailedRedirectURL:  TestURLs.Failed,
 		CancelRedirectURL:  TestURLs.Cancel,
-		OrderRequestedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		OrderRequestedAt:   time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		MerchantInfo: &order.MerchantInfo{
 			MerchantID: testConfig.MerchantID,
 		},
@@ -255,7 +256,7 @@ func TestPaymentFlow_CreditCardPayment(t *testing.T) {
 	if err != nil {
 		t.Logf("Warning: Failed to query order: paymentRequestID=%s, returnedPaymentRequestID=%s, error=%v",
 			paymentRequestID, returnedPaymentRequestID, err)
-		return
+		t.Skip("Credit card payment status could not be verified in sandbox")
 	}
 
 	t.Logf("Inquiry Response: paymentRequestID=%s, returnedPaymentRequestID=%s, code=%s, msg=%s, data=%+v",
@@ -264,9 +265,15 @@ func TestPaymentFlow_CreditCardPayment(t *testing.T) {
 	if inquiryResp.IsSuccess() {
 		inquiryData := inquiryResp.GetData()
 		t.Logf("Final Order Status: paymentRequestID=%s, status=%s", paymentRequestID, inquiryData.OrderStatus)
+		if inquiryData.OrderStatus != "PAY_SUCCESS" {
+			t.Skipf("Credit card sandbox flow remained %s; paid one-time/refund E2E is covered by DANA tests",
+				inquiryData.OrderStatus)
+		}
 	} else {
 		t.Logf("Inquiry failed: paymentRequestID=%s, returnedPaymentRequestID=%s, code=%s, msg=%s, data=%+v",
 			paymentRequestID, returnedPaymentRequestID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
+		t.Skipf("Credit card payment status could not be verified: code=%s, msg=%s",
+			inquiryResp.GetCode(), inquiryResp.GetMessage())
 	}
 }
 
@@ -281,12 +288,12 @@ func TestCreateOrder_WithoutOrderRequestedAt_AutoInjected(t *testing.T) {
 
 	// Deliberately omit OrderRequestedAt to verify SDK auto-injection
 	params := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "10.00",
-		OrderDescription: "E2E Auto-inject OrderRequestedAt Test",
-		NotifyURL:        "https://httpbin.org/post",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "10.00",
+		OrderDescription:   "E2E Auto-inject OrderRequestedAt Test",
+		NotifyURL:          "https://httpbin.org/post",
 		SuccessRedirectURL: TestURLs.Success,
 		FailedRedirectURL:  TestURLs.Failed,
 		CancelRedirectURL:  TestURLs.Cancel,
@@ -340,16 +347,16 @@ func TestPaymentFlow_CancelPayment(t *testing.T) {
 	merchantOrderID := fmt.Sprintf("E2E_CANCEL_%d", time.Now().UnixMilli())
 
 	params := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "10.00",
-		OrderDescription: "E2E Cancel Test",
-		NotifyURL:        "https://httpbin.org/post",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "10.00",
+		OrderDescription:   "E2E Cancel Test",
+		NotifyURL:          "https://httpbin.org/post",
 		SuccessRedirectURL: TestURLs.Success,
 		FailedRedirectURL:  TestURLs.Failed,
 		CancelRedirectURL:  TestURLs.Cancel,
-		OrderRequestedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		OrderRequestedAt:   time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		MerchantInfo: &order.MerchantInfo{
 			MerchantID: testConfig.MerchantID,
 		},

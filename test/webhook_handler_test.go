@@ -83,6 +83,60 @@ func TestWebhookHandlerPaymentNotification(t *testing.T) {
 	}
 }
 
+func TestWebhookHandlerPaymentFailureNotificationWithStringOrderFailedReason(t *testing.T) {
+	handler, keyPair := createTestWebhookHandler(t)
+
+	handlerCalled := false
+	var receivedNotification *core.PaymentNotification
+
+	handler.OnPayment(func(n *core.PaymentNotification) {
+		handlerCalled = true
+		receivedNotification = n
+	})
+
+	payload := map[string]interface{}{
+		"eventType": "PAYMENT_NOTIFICATION",
+		"result": map[string]interface{}{
+			"acquiringOrderId":  "ACQ123",
+			"merchantOrderId":   "ORDER123",
+			"paymentRequestId":  "REQ123",
+			"orderStatus":       core.OrderStatusOrderClose,
+			"orderAmount":       "100.00",
+			"orderCurrency":     "USD",
+			"orderFailedReason": "{\"orderFailedCode\":\"K024\",\"orderFailedDescription\":\"payment failed\"}",
+		},
+	}
+	payloadBytes, _ := json.Marshal(payload)
+	payloadStr := string(payloadBytes)
+
+	signature, _ := utils.Sign(payloadStr, keyPair.PrivateKey)
+
+	result := handler.HandleWebhook(payloadStr, signature)
+	if !result.Success {
+		t.Fatalf("HandleWebhook() should succeed with string orderFailedReason, got error: %s", result.Error)
+	}
+
+	if !handlerCalled {
+		t.Fatal("Payment handler should be called")
+	}
+
+	if receivedNotification == nil || receivedNotification.Result == nil {
+		t.Fatal("Received notification result should not be nil")
+	}
+
+	if receivedNotification.Result.OrderStatus != core.OrderStatusOrderClose {
+		t.Errorf("Expected failed OrderStatus %q, got %q", core.OrderStatusOrderClose, receivedNotification.Result.OrderStatus)
+	}
+
+	var reasonMap map[string]interface{} = receivedNotification.Result.OrderFailedReason
+	if reasonMap["orderFailedCode"] != "K024" {
+		t.Errorf("Expected orderFailedCode K024, got %#v", reasonMap["orderFailedCode"])
+	}
+	if reasonMap["orderFailedDescription"] != "payment failed" {
+		t.Errorf("Expected orderFailedDescription payment failed, got %#v", reasonMap["orderFailedDescription"])
+	}
+}
+
 func TestWebhookHandlerRefundNotification(t *testing.T) {
 	handler, keyPair := createTestWebhookHandler(t)
 
@@ -121,6 +175,57 @@ func TestWebhookHandlerRefundNotification(t *testing.T) {
 	}
 }
 
+func TestWebhookHandlerRefundFailureNotificationWithStringRefundFailedReason(t *testing.T) {
+	handler, keyPair := createTestWebhookHandler(t)
+
+	handlerCalled := false
+	var receivedNotification *core.RefundNotification
+
+	handler.OnRefund(func(n *core.RefundNotification) {
+		handlerCalled = true
+		receivedNotification = n
+	})
+
+	payload := map[string]interface{}{
+		"eventType": "REFUND_NOTIFICATION",
+		"result": map[string]interface{}{
+			"acquiringRefundOrderId": "REF123",
+			"refundRequestId":        "REFUND_REQ123",
+			"refundStatus":           core.RefundStatusFailed,
+			"refundAmount":           "100.00",
+			"refundFailedReason":     "{\"orderFailedCode\":\"RF001\",\"orderFailedDescription\":\"refund failed\"}",
+		},
+	}
+	payloadBytes, _ := json.Marshal(payload)
+	payloadStr := string(payloadBytes)
+	signature, _ := utils.Sign(payloadStr, keyPair.PrivateKey)
+
+	result := handler.HandleWebhook(payloadStr, signature)
+	if !result.Success {
+		t.Fatalf("HandleWebhook() should succeed with string refundFailedReason, got error: %s", result.Error)
+	}
+
+	if !handlerCalled {
+		t.Fatal("Refund handler should be called")
+	}
+
+	if receivedNotification == nil || receivedNotification.Result == nil {
+		t.Fatal("Received notification result should not be nil")
+	}
+
+	if receivedNotification.Result.RefundStatus != core.RefundStatusFailed {
+		t.Errorf("Expected failed RefundStatus %q, got %q", core.RefundStatusFailed, receivedNotification.Result.RefundStatus)
+	}
+
+	var reasonMap map[string]interface{} = receivedNotification.Result.RefundFailedReason
+	if reasonMap["orderFailedCode"] != "RF001" {
+		t.Errorf("Expected orderFailedCode RF001, got %#v", reasonMap["orderFailedCode"])
+	}
+	if reasonMap["orderFailedDescription"] != "refund failed" {
+		t.Errorf("Expected orderFailedDescription refund failed, got %#v", reasonMap["orderFailedDescription"])
+	}
+}
+
 func TestWebhookHandlerSubscriptionStatusNotification(t *testing.T) {
 	handler, keyPair := createTestWebhookHandler(t)
 
@@ -154,6 +259,55 @@ func TestWebhookHandlerSubscriptionStatusNotification(t *testing.T) {
 
 	if !handlerCalled {
 		t.Error("Subscription status handler should be called")
+	}
+}
+
+func TestWebhookHandlerSubscriptionFailureNotificationWithStringFailedReason(t *testing.T) {
+	handler, keyPair := createTestWebhookHandler(t)
+
+	handlerCalled := false
+	var receivedNotification *core.SubscriptionStatusNotification
+
+	handler.OnSubscriptionStatus(func(n *core.SubscriptionStatusNotification) {
+		handlerCalled = true
+		receivedNotification = n
+	})
+
+	payload := map[string]interface{}{
+		"eventType": "SUBSCRIPTION_STATUS_NOTIFICATION",
+		"result": map[string]interface{}{
+			"subscriptionId":     "SUB123",
+			"subscriptionStatus": core.SubscriptionStatusClose,
+			"failedReason":       "{\"orderFailedCode\":\"SUB001\",\"orderFailedDescription\":\"subscription failed\"}",
+		},
+	}
+	payloadBytes, _ := json.Marshal(payload)
+	payloadStr := string(payloadBytes)
+	signature, _ := utils.Sign(payloadStr, keyPair.PrivateKey)
+
+	result := handler.HandleWebhook(payloadStr, signature)
+	if !result.Success {
+		t.Fatalf("HandleWebhook() should succeed with string failedReason, got error: %s", result.Error)
+	}
+
+	if !handlerCalled {
+		t.Fatal("Subscription status handler should be called")
+	}
+
+	if receivedNotification == nil || receivedNotification.Result == nil {
+		t.Fatal("Received notification result should not be nil")
+	}
+
+	if receivedNotification.Result.SubscriptionStatus != core.SubscriptionStatusClose {
+		t.Errorf("Expected failed SubscriptionStatus %q, got %q", core.SubscriptionStatusClose, receivedNotification.Result.SubscriptionStatus)
+	}
+
+	var reasonMap map[string]interface{} = receivedNotification.Result.FailedReason
+	if reasonMap["orderFailedCode"] != "SUB001" {
+		t.Errorf("Expected orderFailedCode SUB001, got %#v", reasonMap["orderFailedCode"])
+	}
+	if reasonMap["orderFailedDescription"] != "subscription failed" {
+		t.Errorf("Expected orderFailedDescription subscription failed, got %#v", reasonMap["orderFailedDescription"])
 	}
 }
 

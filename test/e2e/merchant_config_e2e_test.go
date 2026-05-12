@@ -85,13 +85,13 @@ func TestOrderFlow_CancelOrder(t *testing.T) {
 	merchantOrderID := fmt.Sprintf("E2E_CANCEL_%d", time.Now().UnixMilli())
 
 	createParams := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "10.00",
-		OrderDescription: "E2E Cancel Test Order",
-		OrderRequestedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
-		NotifyURL:        "https://httpbin.org/post",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "10.00",
+		OrderDescription:   "E2E Cancel Test Order",
+		OrderRequestedAt:   time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		NotifyURL:          "https://httpbin.org/post",
 		SuccessRedirectURL: TestURLs.Success,
 		FailedRedirectURL:  TestURLs.Failed,
 		CancelRedirectURL:  TestURLs.Cancel,
@@ -146,6 +146,7 @@ func TestOrderFlow_CancelOrder(t *testing.T) {
 	} else {
 		t.Logf("Cancel response (may be expected for unpaid orders): paymentRequestID=%s, code=%s, msg=%s",
 			paymentRequestID, cancelResp.GetCode(), cancelResp.GetMessage())
+		t.Skipf("Sandbox does not allow cancelling this unpaid order: code=%s, msg=%s",
+			cancelResp.GetCode(), cancelResp.GetMessage())
 	}
 }
-
