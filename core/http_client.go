@@ -14,13 +14,13 @@ import (
 
 // HTTP Headers
 const (
-	HeaderContentType  = "Content-Type"
-	HeaderAPIKey       = "X-API-KEY"
-	HeaderSignature    = "X-SIGNATURE"
-	HeaderAPIVersion   = "X-API-VERSION"
-	HeaderSDKVersion   = "X-SDK-VERSION"
-	ContentTypeJSON    = "application/json"
-	APIVersion         = "1.0.0"
+	HeaderContentType = "Content-Type"
+	HeaderAPIKey      = "X-API-KEY"
+	HeaderSignature   = "X-SIGNATURE"
+	HeaderAPIVersion  = "X-API-VERSION"
+	HeaderSDKVersion  = "X-SDK-VERSION"
+	ContentTypeJSON   = "application/json"
+	APIVersion        = "1.0.0"
 )
 
 // WaffoHttpClient is the HTTP client for making API requests.
@@ -170,7 +170,7 @@ func (c *WaffoHttpClient) injectMerchantID(request interface{}) {
 	}
 }
 
-// injectRequestedAt injects a timestamp into OrderRequestedAt or RequestedAt fields if empty.
+// injectRequestedAt injects a timestamp into known request timestamp fields if empty.
 func (c *WaffoHttpClient) injectRequestedAt(request interface{}) {
 	v := reflect.ValueOf(request)
 	if v.Kind() == reflect.Ptr {
@@ -187,6 +187,10 @@ func (c *WaffoHttpClient) injectRequestedAt(request interface{}) {
 	}
 	// Subscription series: RequestedAt
 	if f := v.FieldByName("RequestedAt"); f.IsValid() && f.CanSet() && f.Kind() == reflect.String && f.String() == "" {
+		f.SetString(now)
+	}
+	// Order capture: CaptureRequestedAt
+	if f := v.FieldByName("CaptureRequestedAt"); f.IsValid() && f.CanSet() && f.Kind() == reflect.String && f.String() == "" {
 		f.SetString(now)
 	}
 }

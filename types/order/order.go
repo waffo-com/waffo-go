@@ -10,28 +10,40 @@ import (
 
 // CreateOrderParams represents the parameters for creating an order.
 type CreateOrderParams struct {
-	PaymentRequestID   string            `json:"paymentRequestId"`
-	MerchantOrderID    string            `json:"merchantOrderId"`
-	OrderCurrency      string            `json:"orderCurrency"`
-	OrderAmount        string            `json:"orderAmount"`
-	UserCurrency       string            `json:"userCurrency,omitempty"`
-	OrderDescription   string            `json:"orderDescription"`
-	OrderRequestedAt   string            `json:"orderRequestedAt,omitempty"`
-	OrderExpiredAt     string            `json:"orderExpiredAt,omitempty"`
-	SuccessRedirectURL string            `json:"successRedirectUrl,omitempty"`
-	FailedRedirectURL  string            `json:"failedRedirectUrl,omitempty"`
-	CancelRedirectURL  string            `json:"cancelRedirectUrl,omitempty"`
-	NotifyURL          string            `json:"notifyUrl"`
-	ExtendInfo         string            `json:"extendInfo,omitempty"`
-	MerchantInfo       *MerchantInfo     `json:"merchantInfo,omitempty"`
-	UserInfo           *UserInfo         `json:"userInfo"`
-	GoodsInfo          *GoodsInfo        `json:"goodsInfo,omitempty"`
-	PaymentInfo        *PaymentInfo      `json:"paymentInfo"`
-	CardInfo           *CardInfo         `json:"cardInfo,omitempty"`
-	PaymentTokenData   *PaymentTokenData `json:"paymentTokenData,omitempty"`
-	RiskData           *RiskData         `json:"riskData,omitempty"`
-	AddressInfo        *AddressInfo      `json:"addressInfo,omitempty"`
-	ExtraParams        types.ExtraParams `json:"extraParams,omitempty"`
+	PaymentRequestID            string            `json:"paymentRequestId"`
+	MerchantOrderID             string            `json:"merchantOrderId"`
+	OrderCurrency               string            `json:"orderCurrency"`
+	OrderAmount                 string            `json:"orderAmount"`
+	UserCurrency                string            `json:"userCurrency,omitempty"`
+	OrderDescription            string            `json:"orderDescription"`
+	OrderRequestedAt            string            `json:"orderRequestedAt,omitempty"`
+	OrderExpiredAt              string            `json:"orderExpiredAt,omitempty"`
+	SuccessRedirectURL          string            `json:"successRedirectUrl,omitempty"`
+	FailedRedirectURL           string            `json:"failedRedirectUrl,omitempty"`
+	CancelRedirectURL           string            `json:"cancelRedirectUrl,omitempty"`
+	NotifyURL                   string            `json:"notifyUrl"`
+	ExtendInfo                  string            `json:"extendInfo,omitempty"`
+	MerchantInfo                *MerchantInfo     `json:"merchantInfo,omitempty"`
+	UserInfo                    *UserInfo         `json:"userInfo"`
+	GoodsInfo                   *GoodsInfo        `json:"goodsInfo,omitempty"`
+	PaymentInfo                 *PaymentInfo      `json:"paymentInfo"`
+	BrandInfo                   *BrandInfo        `json:"brandInfo,omitempty"`
+	CardInfo                    *CardInfo         `json:"cardInfo,omitempty"`
+	PaymentTokenData            *PaymentTokenData `json:"paymentTokenData,omitempty"`
+	RiskData                    *RiskData         `json:"riskData,omitempty"`
+	AddressInfo                 *AddressInfo      `json:"addressInfo,omitempty"`
+	ProductDetail               *ProductDetail    `json:"productDetail,omitempty"`
+	AcqOrderExtSubscriptionInfo interface{}       `json:"acqOrderExtSubscriptionInfo,omitempty"`
+	ChannelID                   string            `json:"channelId,omitempty"`
+	InnerCardData               interface{}       `json:"innerCardData,omitempty"`
+	ExtraParams                 types.ExtraParams `json:"extraParams,omitempty"`
+}
+
+// BrandInfo represents cashier brand display information.
+type BrandInfo struct {
+	CashierLogoURL         string `json:"cashierLogoUrl,omitempty"`
+	CashierDisplayName     string `json:"cashierDisplayName,omitempty"`
+	CashierProductImageURL string `json:"cashierProductImageUrl,omitempty"`
 }
 
 // CardInfo represents card information for direct card payments.
@@ -47,6 +59,43 @@ type CardInfo struct {
 // PaymentTokenData represents tokenized payment data.
 type PaymentTokenData struct {
 	TokenID string `json:"tokenId,omitempty"`
+}
+
+// ProductDetail represents product details attached to an order.
+type ProductDetail struct {
+	SubscriptionInfo *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
+}
+
+// AcqOrderExtSubscriptionInfo represents subscription extension information attached to an acquiring order.
+type AcqOrderExtSubscriptionInfo struct {
+	SubscriptionID    string `json:"subscriptionId,omitempty"`
+	PeriodNo          int    `json:"periodNo,omitempty"`
+	MerchantRequest   string `json:"merchantRequest,omitempty"`
+	SubscriptionEvent string `json:"subscriptionEvent,omitempty"`
+}
+
+// WaffoTokenCardData represents tokenized card data used for direct card payment flows.
+type WaffoTokenCardData struct {
+	CardBinDataList []CardBinData `json:"cardBinDataList,omitempty"`
+	MaskedCardInfo  string        `json:"maskedCardInfo,omitempty"`
+	CardBin         string        `json:"cardBin,omitempty"`
+	CardExpiry      string        `json:"cardExpiry,omitempty"`
+}
+
+// CardBinData represents card BIN metadata returned with tokenized card data.
+type CardBinData struct {
+	CardBin                  string   `json:"cardBin,omitempty"`
+	CardScheme               string   `json:"cardScheme,omitempty"`
+	CardBrand                string   `json:"cardBrand,omitempty"`
+	CardType                 string   `json:"cardType,omitempty"`
+	CardTypeList             []string `json:"cardTypeList,omitempty"`
+	SubCardType              string   `json:"subCardType,omitempty"`
+	CardIssuerName           string   `json:"cardIssuerName,omitempty"`
+	CardIssuerCode           string   `json:"cardIssuerCode,omitempty"`
+	CardIssueCountryCode     string   `json:"cardIssueCountryCode,omitempty"`
+	CardIssueCountryCodeList []string `json:"cardIssueCountryCodeList,omitempty"`
+	Status                   string   `json:"status,omitempty"`
+	ExtendedInfo             string   `json:"extendedInfo,omitempty"`
 }
 
 // RiskData represents risk control auxiliary data.
@@ -224,12 +273,12 @@ type CancelOrderData struct {
 // RefundOrderParams represents the parameters for refunding an order.
 type RefundOrderParams struct {
 	RefundRequestID       string            `json:"refundRequestId"`
-	AcquiringOrderID      string            `json:"acquiringOrderId,omitempty"`
+	AcquiringOrderID      string            `json:"acquiringOrderId"`
 	MerchantRefundOrderID string            `json:"merchantRefundOrderId,omitempty"`
 	MerchantID            string            `json:"merchantId,omitempty"`
 	RequestedAt           string            `json:"requestedAt,omitempty"`
 	RefundAmount          string            `json:"refundAmount"`
-	RefundReason          string            `json:"refundReason,omitempty"`
+	RefundReason          string            `json:"refundReason"`
 	NotifyURL             string            `json:"refundNotifyUrl,omitempty"`
 	ExtendInfo            string            `json:"extendInfo,omitempty"`
 	RefundSource          string            `json:"refundSource,omitempty"`
@@ -269,19 +318,19 @@ type CaptureOrderData struct {
 
 // RefundUserInfo represents user information required for refunds with specific payment methods.
 type RefundUserInfo struct {
-	UserType        string          `json:"userType,omitempty"`
-	UserFirstName   string          `json:"userFirstName,omitempty"`
-	UserMiddleName  string          `json:"userMiddleName,omitempty"`
-	UserLastName    string          `json:"userLastName,omitempty"`
-	Nationality     string          `json:"nationality,omitempty"`
-	UserEmail       string          `json:"userEmail,omitempty"`
-	UserPhone       string          `json:"userPhone,omitempty"`
-	UserBirthDay    string          `json:"userBirthDay,omitempty"`
-	UserIDType      string          `json:"userIDType,omitempty"`
-	UserIDNumber    string          `json:"userIDNumber,omitempty"`
-	UserIDIssueDate string          `json:"userIDIssueDate,omitempty"`
-	UserIDExpiryDate string         `json:"userIDExpiryDate,omitempty"`
-	UserBankInfo    *RefundUserBankInfo `json:"userBankInfo,omitempty"`
+	UserType         string              `json:"userType,omitempty"`
+	UserFirstName    string              `json:"userFirstName,omitempty"`
+	UserMiddleName   string              `json:"userMiddleName,omitempty"`
+	UserLastName     string              `json:"userLastName,omitempty"`
+	Nationality      string              `json:"nationality,omitempty"`
+	UserEmail        string              `json:"userEmail,omitempty"`
+	UserPhone        string              `json:"userPhone,omitempty"`
+	UserBirthDay     string              `json:"userBirthDay,omitempty"`
+	UserIDType       string              `json:"userIDType,omitempty"`
+	UserIDNumber     string              `json:"userIDNumber,omitempty"`
+	UserIDIssueDate  string              `json:"userIDIssueDate,omitempty"`
+	UserIDExpiryDate string              `json:"userIDExpiryDate,omitempty"`
+	UserBankInfo     *RefundUserBankInfo `json:"userBankInfo,omitempty"`
 }
 
 // RefundUserBankInfo represents bank account information for refund user.

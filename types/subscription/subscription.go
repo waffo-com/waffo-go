@@ -19,15 +19,16 @@ type SubscriptionInfo struct {
 // CreateSubscriptionParams represents the parameters for creating a subscription.
 type CreateSubscriptionParams struct {
 	SubscriptionRequest       string                    `json:"subscriptionRequest"`
-	MerchantSubscriptionID    string                    `json:"merchantSubscriptionId,omitempty"`
+	MerchantSubscriptionID    string                    `json:"merchantSubscriptionId"`
 	Currency                  string                    `json:"currency"`
 	Amount                    string                    `json:"amount"`
 	UserCurrency              string                    `json:"userCurrency,omitempty"`
-	ProductInfo               *ProductInfo              `json:"productInfo,omitempty"`
+	ProductInfo               *ProductInfo              `json:"productInfo"`
 	MerchantInfo              *SubscriptionMerchantInfo `json:"merchantInfo,omitempty"`
 	UserInfo                  *SubscriptionUserInfo     `json:"userInfo"`
 	GoodsInfo                 *SubscriptionGoodsInfo    `json:"goodsInfo,omitempty"`
 	AddressInfo               *SubscriptionAddressInfo  `json:"addressInfo,omitempty"`
+	BrandInfo                 *SubscriptionBrandInfo    `json:"brandInfo,omitempty"`
 	PaymentInfo               *SubscriptionPaymentInfo  `json:"paymentInfo"`
 	RiskData                  *SubscriptionRiskData     `json:"riskData,omitempty"`
 	RequestedAt               string                    `json:"requestedAt,omitempty"`
@@ -36,26 +37,37 @@ type CreateSubscriptionParams struct {
 	FailedRedirectURL         string                    `json:"failedRedirectUrl,omitempty"`
 	CancelRedirectURL         string                    `json:"cancelRedirectUrl,omitempty"`
 	SubscriptionManagementURL string                    `json:"subscriptionManagementUrl,omitempty"`
-	NotifyURL                 string                    `json:"notifyUrl,omitempty"`
+	NotifyURL                 string                    `json:"notifyUrl"`
 	ExtendInfo                string                    `json:"extendInfo,omitempty"`
 	Metadata                  string                    `json:"metadata,omitempty"`
+	SubscriptionMode          string                    `json:"subscriptionMode,omitempty"`
+	AcqMerchant               interface{}               `json:"acqMerchant,omitempty"`
+	AcqProduct                interface{}               `json:"acqProduct,omitempty"`
+	AcqAgreements             []interface{}             `json:"acqAgreements,omitempty"`
 	ExtraParams               types.ExtraParams         `json:"extraParams,omitempty"`
+}
+
+// ScheduledAmount represents a scheduled amount for a specific subscription period.
+type ScheduledAmount struct {
+	Period string `json:"period,omitempty"`
+	Amount string `json:"amount,omitempty"`
 }
 
 // ProductInfo represents product/billing configuration.
 type ProductInfo struct {
-	Description         string `json:"description,omitempty"`         // REQUIRED, max 128
-	PeriodType          string `json:"periodType,omitempty"`          // REQUIRED, DAILY/WEEKLY/MONTHLY
-	PeriodInterval      string `json:"periodInterval,omitempty"`      // REQUIRED, max 12
-	NumberOfPeriod      string `json:"numberOfPeriod,omitempty"`      // max 24
-	TrialPeriodAmount   string `json:"trialPeriodAmount,omitempty"`   // max 24
-	NumberOfTrialPeriod string `json:"numberOfTrialPeriod,omitempty"` // max 12
-	TrialPeriodType     string `json:"trialPeriodType,omitempty"`     // DAILY/WEEKLY/MONTHLY
-	TrialPeriodInterval string `json:"trialPeriodInterval,omitempty"` // max 12
-	StartDateTime       string `json:"startDateTime,omitempty"`       // Response only, ISO 8601
-	EndDateTime         string `json:"endDateTime,omitempty"`         // Response only, ISO 8601
-	NextPaymentDateTime string `json:"nextPaymentDateTime,omitempty"` // Response only, ISO 8601
-	CurrentPeriod       string `json:"currentPeriod,omitempty"`       // Response only
+	Description         string            `json:"description"`                   // REQUIRED, max 128
+	PeriodType          string            `json:"periodType"`                    // REQUIRED, DAILY/WEEKLY/MONTHLY
+	PeriodInterval      string            `json:"periodInterval"`                // REQUIRED, max 12
+	NumberOfPeriod      string            `json:"numberOfPeriod,omitempty"`      // max 24
+	TrialPeriodAmount   string            `json:"trialPeriodAmount,omitempty"`   // max 24
+	NumberOfTrialPeriod string            `json:"numberOfTrialPeriod,omitempty"` // max 12
+	TrialPeriodType     string            `json:"trialPeriodType,omitempty"`     // DAILY/WEEKLY/MONTHLY
+	TrialPeriodInterval string            `json:"trialPeriodInterval,omitempty"` // max 12
+	StartDateTime       string            `json:"startDateTime,omitempty"`       // Response only, ISO 8601
+	EndDateTime         string            `json:"endDateTime,omitempty"`         // Response only, ISO 8601
+	NextPaymentDateTime string            `json:"nextPaymentDateTime,omitempty"` // Response only, ISO 8601
+	CurrentPeriod       string            `json:"currentPeriod,omitempty"`       // Response only
+	ScheduledAmounts    []ScheduledAmount `json:"scheduledAmounts,omitempty"`
 }
 
 // SubscriptionMerchantInfo represents merchant information for subscriptions.
@@ -106,6 +118,13 @@ type SubscriptionAddress struct {
 	PostalCode string `json:"postalCode,omitempty"`
 }
 
+// SubscriptionBrandInfo represents cashier brand display information.
+type SubscriptionBrandInfo struct {
+	CashierLogoURL         string `json:"cashierLogoUrl,omitempty"`
+	CashierDisplayName     string `json:"cashierDisplayName,omitempty"`
+	CashierProductImageURL string `json:"cashierProductImageUrl,omitempty"`
+}
+
 // SubscriptionPaymentInfo represents payment information for subscriptions.
 type SubscriptionPaymentInfo struct {
 	ProductName              string `json:"productName,omitempty"`
@@ -129,12 +148,12 @@ type SubscriptionRiskData struct {
 
 // CreateSubscriptionData represents the response data for subscription creation.
 type CreateSubscriptionData struct {
-	SubscriptionRequest      string `json:"subscriptionRequest,omitempty"`
-	MerchantSubscriptionID   string `json:"merchantSubscriptionId,omitempty"`
-	SubscriptionID           string `json:"subscriptionId,omitempty"`
-	PayMethodSubscriptionID  string `json:"payMethodSubscriptionId,omitempty"`
-	SubscriptionStatus       string `json:"subscriptionStatus,omitempty"`
-	SubscriptionAction       string `json:"subscriptionAction,omitempty"`
+	SubscriptionRequest     string `json:"subscriptionRequest,omitempty"`
+	MerchantSubscriptionID  string `json:"merchantSubscriptionId,omitempty"`
+	SubscriptionID          string `json:"subscriptionId,omitempty"`
+	PayMethodSubscriptionID string `json:"payMethodSubscriptionId,omitempty"`
+	SubscriptionStatus      string `json:"subscriptionStatus,omitempty"`
+	SubscriptionAction      string `json:"subscriptionAction,omitempty"`
 }
 
 // FetchRedirectURL returns the redirect URL from the subscription action.
@@ -171,7 +190,7 @@ func (d *CreateSubscriptionData) FetchRedirectURL() string {
 type InquirySubscriptionParams struct {
 	SubscriptionRequest string            `json:"subscriptionRequest,omitempty"`
 	SubscriptionID      string            `json:"subscriptionId,omitempty"`
-	PaymentDetails      bool              `json:"paymentDetails,omitempty"`
+	PaymentDetails      int               `json:"paymentDetails,omitempty"`
 	ExtraParams         types.ExtraParams `json:"extraParams,omitempty"`
 }
 
@@ -195,14 +214,24 @@ type InquirySubscriptionData struct {
 	FailedReason              string                    `json:"failedReason,omitempty"`
 	SubscriptionManagementURL string                    `json:"subscriptionManagementUrl,omitempty"`
 	ExtendInfo                string                    `json:"extendInfo,omitempty"`
-	PaymentDetails            json.RawMessage           `json:"paymentDetails,omitempty"`
+	PaymentDetails            []PaymentDetail           `json:"paymentDetails,omitempty"`
 	GoodsInfo                 *SubscriptionGoodsInfo    `json:"goodsInfo,omitempty"`
 	AddressInfo               *SubscriptionAddressInfo  `json:"addressInfo,omitempty"`
 }
 
+// PaymentDetail represents one subscription payment detail returned by inquiry.
+type PaymentDetail struct {
+	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
+	OrderCurrency    string `json:"orderCurrency,omitempty"`
+	OrderAmount      string `json:"orderAmount,omitempty"`
+	OrderStatus      string `json:"orderStatus,omitempty"`
+	OrderUpdatedAt   string `json:"orderUpdatedAt,omitempty"`
+	Period           string `json:"period,omitempty"`
+}
+
 // CancelSubscriptionParams represents the parameters for canceling a subscription.
 type CancelSubscriptionParams struct {
-	SubscriptionID string            `json:"subscriptionId,omitempty"`
+	SubscriptionID string            `json:"subscriptionId"`
 	MerchantID     string            `json:"merchantId,omitempty"`
 	RequestedAt    string            `json:"requestedAt,omitempty"`
 	ExtraParams    types.ExtraParams `json:"extraParams,omitempty"`
@@ -235,15 +264,16 @@ type ManageSubscriptionData struct {
 
 // SubscriptionChangeProductInfo represents product info for subscription change.
 type SubscriptionChangeProductInfo struct {
-	Description         string `json:"description"`
-	PeriodType          string `json:"periodType"`
-	PeriodInterval      string `json:"periodInterval"`
-	Amount              string `json:"amount"`
-	NumberOfPeriod      string `json:"numberOfPeriod,omitempty"`
-	TrialPeriodAmount   string `json:"trialPeriodAmount,omitempty"`
-	NumberOfTrialPeriod string `json:"numberOfTrialPeriod,omitempty"`
-	TrialPeriodType     string `json:"trialPeriodType,omitempty"`
-	TrialPeriodInterval string `json:"trialPeriodInterval,omitempty"`
+	Description         string            `json:"description"`
+	PeriodType          string            `json:"periodType"`
+	PeriodInterval      string            `json:"periodInterval"`
+	Amount              string            `json:"amount"`
+	NumberOfPeriod      string            `json:"numberOfPeriod,omitempty"`
+	TrialPeriodAmount   string            `json:"trialPeriodAmount,omitempty"`
+	NumberOfTrialPeriod string            `json:"numberOfTrialPeriod,omitempty"`
+	TrialPeriodType     string            `json:"trialPeriodType,omitempty"`
+	TrialPeriodInterval string            `json:"trialPeriodInterval,omitempty"`
+	ScheduledAmounts    []ScheduledAmount `json:"scheduledAmounts,omitempty"`
 }
 
 // ChangeSubscriptionParams represents the parameters for changing a subscription.
@@ -251,7 +281,7 @@ type ChangeSubscriptionParams struct {
 	SubscriptionRequest       string                          `json:"subscriptionRequest"`
 	MerchantSubscriptionID    string                          `json:"merchantSubscriptionId,omitempty"`
 	OriginSubscriptionRequest string                          `json:"originSubscriptionRequest"`
-	RemainingAmount           string                          `json:"remainingAmount,omitempty"`
+	RemainingAmount           string                          `json:"remainingAmount"`
 	Currency                  string                          `json:"currency"`
 	UserCurrency              string                          `json:"userCurrency,omitempty"`
 	RequestedAt               string                          `json:"requestedAt"`
@@ -267,9 +297,38 @@ type ChangeSubscriptionParams struct {
 	UserInfo                  *SubscriptionUserInfo           `json:"userInfo"`
 	GoodsInfo                 *SubscriptionGoodsInfo          `json:"goodsInfo"`
 	AddressInfo               *SubscriptionAddressInfo        `json:"addressInfo,omitempty"`
+	BrandInfo                 *SubscriptionBrandInfo          `json:"brandInfo,omitempty"`
 	PaymentInfo               *SubscriptionPaymentInfo        `json:"paymentInfo"`
 	RiskData                  *SubscriptionRiskData           `json:"riskData,omitempty"`
 	ExtraParams               types.ExtraParams               `json:"extraParams,omitempty"`
+}
+
+// UpdateProductInfo represents product info supported by subscription update.
+type UpdateProductInfo struct {
+	TrialPeriodAmount string            `json:"trialPeriodAmount,omitempty"`
+	ScheduledAmounts  []ScheduledAmount `json:"scheduledAmounts,omitempty"`
+}
+
+// UpdateSubscriptionParams represents the parameters for updating a subscription.
+type UpdateSubscriptionParams struct {
+	SubscriptionRequest string             `json:"subscriptionRequest,omitempty"`
+	SubscriptionID      string             `json:"subscriptionId,omitempty"`
+	Amount              string             `json:"amount,omitempty"`
+	ProductInfo         *UpdateProductInfo `json:"productInfo,omitempty"`
+	ExtraParams         types.ExtraParams  `json:"extraParams,omitempty"`
+}
+
+// UpdateSubscriptionData represents the response data for subscription update.
+type UpdateSubscriptionData struct {
+	SubscriptionID            string            `json:"subscriptionId,omitempty"`
+	SubscriptionRequest       string            `json:"subscriptionRequest,omitempty"`
+	PreviousTrialPeriodAmount string            `json:"previousTrialPeriodAmount,omitempty"`
+	NewTrialPeriodAmount      string            `json:"newTrialPeriodAmount,omitempty"`
+	PreviousAmount            string            `json:"previousAmount,omitempty"`
+	NewAmount                 string            `json:"newAmount,omitempty"`
+	PreviousScheduledAmounts  []ScheduledAmount `json:"previousScheduledAmounts,omitempty"`
+	NewScheduledAmounts       []ScheduledAmount `json:"newScheduledAmounts,omitempty"`
+	NextEffectivePeriod       string            `json:"nextEffectivePeriod,omitempty"`
 }
 
 // ChangeSubscriptionData represents the response data for subscription change.

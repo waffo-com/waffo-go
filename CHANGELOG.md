@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-13
+
+### Added
+
+- **Subscription update API**: Added `Subscription().Update()` with amount, trial period amount, and scheduled amount support.
+- **Scheduled subscription amounts**: Added `ScheduledAmount` support for subscription create, change, update, and inquiry product info types.
+- **Typed order extension helpers**: Added helper structs for subscription extension info, token card data, card BIN data, and product details while preserving compatibility for existing dynamic fields.
+
+### Fixed
+
+- **Order capture timestamp**: Auto-inject `CaptureRequestedAt` for `Order().Capture()` when omitted.
+- **Schema field coverage**: Expanded schema field validation to cover required fields and nested subscription/order schemas.
+
 ## [1.3.2] - 2026-05-12
 
 ### Fixed

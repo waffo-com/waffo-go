@@ -63,3 +63,8 @@ func (r *SubscriptionResource) ChangeInquiry(ctx context.Context, params *subscr
 	}
 	return resp, nil
 }
+
+// Update updates an existing subscription amount, trial amount, or scheduled amounts.
+func (r *SubscriptionResource) Update(ctx context.Context, params *subscription.UpdateSubscriptionParams, opts *config.RequestOptions) (*core.ApiResponse[subscription.UpdateSubscriptionData], error) {
+	return core.PostWithResponse[subscription.UpdateSubscriptionData](r.httpClient, ctx, r.GetPath("/update"), params, opts)
+}

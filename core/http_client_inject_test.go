@@ -341,3 +341,38 @@ func TestInjectRequestedAt_RealChangeSubscriptionParams_AutoInject(t *testing.T)
 		t.Errorf("format mismatch, got '%s'", params.RequestedAt)
 	}
 }
+
+// Test 19: Real CaptureOrderParams without CaptureRequestedAt → auto inject
+func TestInjectRequestedAt_RealCaptureOrderParams_AutoInject(t *testing.T) {
+	client := newClientWithMerchantID("")
+	params := &order.CaptureOrderParams{
+		PaymentRequestID: "PR_CAPTURE_001",
+		CaptureAmount:    "10.00",
+	}
+
+	client.injectRequestedAt(params)
+
+	if params.CaptureRequestedAt == "" {
+		t.Fatal("expected CaptureRequestedAt to be auto-injected for real CaptureOrderParams")
+	}
+	if !iso8601Regex.MatchString(params.CaptureRequestedAt) {
+		t.Errorf("format mismatch, got '%s'", params.CaptureRequestedAt)
+	}
+}
+
+// Test 20: Real CaptureOrderParams with CaptureRequestedAt → don't override
+func TestInjectRequestedAt_RealCaptureOrderParams_Existing(t *testing.T) {
+	client := newClientWithMerchantID("")
+	existing := "2025-06-15T12:30:00.000Z"
+	params := &order.CaptureOrderParams{
+		PaymentRequestID:   "PR_CAPTURE_002",
+		CaptureRequestedAt: existing,
+		CaptureAmount:      "10.00",
+	}
+
+	client.injectRequestedAt(params)
+
+	if params.CaptureRequestedAt != existing {
+		t.Errorf("expected CaptureRequestedAt='%s', got '%s'", existing, params.CaptureRequestedAt)
+	}
+}
