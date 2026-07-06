@@ -9,14 +9,14 @@ import (
 )
 
 // SDK version
-const SDKVersion = "1.4.0"
+const SDKVersion = "1.4.1"
 
 // WaffoConfig contains the configuration for the Waffo SDK.
 type WaffoConfig struct {
 	// APIKey is the merchant's API key (required).
 	APIKey string
 
-	// PrivateKey is the merchant's private key in Base64 PKCS#8 format (required).
+	// PrivateKey is the merchant's private key in Base64 PKCS#8 DER or unencrypted PKCS#8 PEM format (required).
 	PrivateKey string
 
 	// WaffoPublicKey is Waffo's public key in Base64 X.509 format (required).
@@ -111,24 +111,7 @@ func (b *ConfigBuilder) CustomTransport(transport net.HttpTransport) *ConfigBuil
 func (b *ConfigBuilder) Build() (*WaffoConfig, error) {
 	config := b.config
 
-	// Validate required fields
-	if config.APIKey == "" {
-		return nil, errors.NewWaffoError(errors.CodeUnexpectedError, "API key is required")
-	}
-	if config.PrivateKey == "" {
-		return nil, errors.NewWaffoError(errors.CodeInvalidPrivateKey, "private key is required")
-	}
-	if config.WaffoPublicKey == "" {
-		return nil, errors.NewWaffoError(errors.CodeInvalidPublicKey, "Waffo public key is required")
-	}
-
-	// Validate private key format
-	if err := utils.ValidatePrivateKey(config.PrivateKey); err != nil {
-		return nil, err
-	}
-
-	// Validate public key format
-	if err := utils.ValidatePublicKey(config.WaffoPublicKey); err != nil {
+	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -144,6 +127,32 @@ func (b *ConfigBuilder) Build() (*WaffoConfig, error) {
 	}
 
 	return &config, nil
+}
+
+// Validate validates the WaffoConfig fields without mutating defaults.
+func (c *WaffoConfig) Validate() error {
+	// Validate required fields
+	if c.APIKey == "" {
+		return errors.NewWaffoError(errors.CodeUnexpectedError, "API key is required")
+	}
+	if c.PrivateKey == "" {
+		return errors.NewWaffoError(errors.CodeInvalidPrivateKey, "private key is required")
+	}
+	if c.WaffoPublicKey == "" {
+		return errors.NewWaffoError(errors.CodeInvalidPublicKey, "Waffo public key is required")
+	}
+
+	// Validate private key format
+	if err := utils.ValidatePrivateKey(c.PrivateKey); err != nil {
+		return err
+	}
+
+	// Validate public key format
+	if err := utils.ValidatePublicKey(c.WaffoPublicKey); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // MustBuild is like Build but panics on error.

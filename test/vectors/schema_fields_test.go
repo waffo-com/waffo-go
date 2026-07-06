@@ -19,11 +19,12 @@ type schemaFieldsFile struct {
 }
 
 type schemaEntry struct {
-	OpenapiSchema    string   `json:"openapiSchema"`
-	Fields           []string `json:"fields"`
-	Required         []string `json:"required"`
-	AllowExtraFields bool     `json:"allowExtraFields"`
-	SdkTypes         struct {
+	OpenapiSchema      string   `json:"openapiSchema"`
+	Fields             []string `json:"fields"`
+	Required           []string `json:"required"`
+	AllowExtraFields   bool     `json:"allowExtraFields"`
+	AllowedExtraFields []string `json:"allowedExtraFields"`
+	SdkTypes           struct {
 		Go string `json:"go"`
 	} `json:"sdkTypes"`
 }
@@ -48,14 +49,20 @@ var goTypeRegistry = map[string]reflect.Type{
 	"order.CaptureOrderData":            reflect.TypeOf(order.CaptureOrderData{}),
 	"order.RefundOrderParams":           reflect.TypeOf(order.RefundOrderParams{}),
 	"order.RefundOrderData":             reflect.TypeOf(order.RefundOrderData{}),
+	"order.PaymentInfo":                 reflect.TypeOf(order.PaymentInfo{}),
 	// Refund
 	"refund.InquiryRefundParams": reflect.TypeOf(refund.InquiryRefundParams{}),
 	"refund.InquiryRefundData":   reflect.TypeOf(refund.InquiryRefundData{}),
 	// Subscription
 	"subscription.CreateSubscriptionParams":      reflect.TypeOf(subscription.CreateSubscriptionParams{}),
 	"subscription.CreateSubscriptionData":        reflect.TypeOf(subscription.CreateSubscriptionData{}),
+	"subscription.SubscriptionUserInfo":          reflect.TypeOf(subscription.SubscriptionUserInfo{}),
+	"subscription.SubscriptionPaymentInfo":       reflect.TypeOf(subscription.SubscriptionPaymentInfo{}),
+	"subscription.SubscriptionAddressInfo":       reflect.TypeOf(subscription.SubscriptionAddressInfo{}),
+	"subscription.SubscriptionRiskData":          reflect.TypeOf(subscription.SubscriptionRiskData{}),
 	"subscription.InquirySubscriptionParams":     reflect.TypeOf(subscription.InquirySubscriptionParams{}),
 	"subscription.InquirySubscriptionData":       reflect.TypeOf(subscription.InquirySubscriptionData{}),
+	"subscription.SubscriptionInfo":              reflect.TypeOf(subscription.SubscriptionInfo{}),
 	"subscription.ProductInfo":                   reflect.TypeOf(subscription.ProductInfo{}),
 	"subscription.PaymentDetail":                 reflect.TypeOf(subscription.PaymentDetail{}),
 	"subscription.ManageSubscriptionParams":      reflect.TypeOf(subscription.ManageSubscriptionParams{}),
@@ -72,8 +79,12 @@ var goTypeRegistry = map[string]reflect.Type{
 	"subscription.ChangeInquiryParams":           reflect.TypeOf(subscription.ChangeInquiryParams{}),
 	"subscription.ChangeInquiryData":             reflect.TypeOf(subscription.ChangeInquiryData{}),
 	// Merchant
-	"merchant.InquiryMerchantConfigParams": reflect.TypeOf(merchant.InquiryMerchantConfigParams{}),
-	"merchant.InquiryMerchantConfigData":   reflect.TypeOf(merchant.InquiryMerchantConfigData{}),
+	"merchant.InquiryMerchantConfigParams":  reflect.TypeOf(merchant.InquiryMerchantConfigParams{}),
+	"merchant.InquiryMerchantConfigData":    reflect.TypeOf(merchant.InquiryMerchantConfigData{}),
+	"merchant.InquiryPayMethodConfigParams": reflect.TypeOf(merchant.InquiryPayMethodConfigParams{}),
+	"merchant.InquiryPayMethodConfigData":   reflect.TypeOf(merchant.InquiryPayMethodConfigData{}),
+	"merchant.PayMethodDetail":              reflect.TypeOf(merchant.PayMethodDetail{}),
+	"merchant.FixedMaintenanceRule":         reflect.TypeOf(merchant.FixedMaintenanceRule{}),
 }
 
 // Required OpenAPI request fields that are intentionally omitted from the public
@@ -184,6 +195,10 @@ func TestSchemaFieldsAlignment(t *testing.T) {
 			for _, f := range schema.Fields {
 				openapiFields[f] = true
 			}
+			allowedExtraFields := make(map[string]bool)
+			for _, f := range schema.AllowedExtraFields {
+				allowedExtraFields[f] = true
+			}
 			for jsonTag := range jsonTags {
 				if excluded[jsonTag] {
 					continue
@@ -191,7 +206,7 @@ func TestSchemaFieldsAlignment(t *testing.T) {
 				if schema.AllowExtraFields {
 					continue
 				}
-				if !openapiFields[jsonTag] {
+				if !openapiFields[jsonTag] && !allowedExtraFields[jsonTag] {
 					t.Errorf("EXTRA field: Go type %s has json tag %q which is not in openapi schema %q",
 						goTypeName, jsonTag, schema.OpenapiSchema)
 				}

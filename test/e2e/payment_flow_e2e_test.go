@@ -200,81 +200,43 @@ func TestPaymentFlow_CreditCardPayment(t *testing.T) {
 	t.Logf("Checkout URL: %s", checkoutURL)
 	t.Logf("Returned Payment Request ID: %s", returnedPaymentRequestID)
 
-	// Open checkout
-	if err := base.NavigateTo(checkoutURL); err != nil {
-		t.Fatalf("Failed to navigate: %v", err)
-	}
-
-	base.WaitForPageLoad()
-	base.SleepMs(2000) // Wait for page to fully render
-
-	base.TakeScreenshot("before_card_input")
-
-	// Fill card details (selectors may need adjustment based on actual page)
-	base.Fill("#payMethodProperties\\.card\\.pan", TestCard.Number)
-	base.SleepMs(500)
-
-	// Expiry in MM/YY format
-	expiry := fmt.Sprintf("%s/%s", TestCard.ExpiryMonth, TestCard.ExpiryYear[2:])
-	base.Fill("#payMethodProperties\\.card\\.expiry", expiry)
-	base.SleepMs(500)
-
-	base.Fill("#payMethodProperties\\.card\\.cvv", TestCard.CVV)
-	base.SleepMs(500)
-
-	base.Fill("#payMethodProperties\\.card\\.name", TestCard.Holder)
-	base.SleepMs(500)
-
-	base.TakeScreenshot("after_card_input")
-
-	t.Log("Card info filled, clicking pay button...")
-
-	// Click submit button
-	if err := base.Click("button[type='submit']"); err != nil {
-		t.Logf("Warning: Could not click submit button: %v", err)
-	}
-
-	// Wait for redirect (up to 60 seconds for payment processing)
 	base.SetTimeout(60000)
-	if err := base.WaitForURLContains("success"); err != nil {
-		t.Logf("Did not redirect to success page: %v", err)
-		base.PrintCurrentURL()
-	} else {
-		t.Log("Payment successful! Redirected to success page.")
+	if !base.CompleteCheckout(t, checkoutURL, "credit_card_payment", DefaultCheckoutCard()) {
+		t.Fatalf("Credit card checkout did not complete: paymentRequestID=%s, returnedPaymentRequestID=%s, acquiringOrderID=%s, currentURL=%s",
+			paymentRequestID, returnedPaymentRequestID, data.AcquiringOrderID, base.Page.URL())
 	}
-
-	base.TakeScreenshot("payment_completed")
-
-	// Wait and query order status
-	base.SleepMs(2000)
 
 	inquiryParams := &order.InquiryOrderParams{
 		PaymentRequestID: returnedPaymentRequestID,
 	}
 
-	inquiryResp, err := testWaffo.Order().Inquiry(context.Background(), inquiryParams, nil)
-	if err != nil {
-		t.Logf("Warning: Failed to query order: paymentRequestID=%s, returnedPaymentRequestID=%s, error=%v",
-			paymentRequestID, returnedPaymentRequestID, err)
-		t.Skip("Credit card payment status could not be verified in sandbox")
-	}
-
-	t.Logf("Inquiry Response: paymentRequestID=%s, returnedPaymentRequestID=%s, code=%s, msg=%s, data=%+v",
-		paymentRequestID, returnedPaymentRequestID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
-
-	if inquiryResp.IsSuccess() {
-		inquiryData := inquiryResp.GetData()
-		t.Logf("Final Order Status: paymentRequestID=%s, status=%s", paymentRequestID, inquiryData.OrderStatus)
-		if inquiryData.OrderStatus != "PAY_SUCCESS" {
-			t.Skipf("Credit card sandbox flow remained %s; paid one-time/refund E2E is covered by DANA tests",
-				inquiryData.OrderStatus)
+	var finalStatus string
+	var lastInquiry string
+	for attempt := 1; attempt <= 20; attempt++ {
+		inquiryResp, inquiryErr := testWaffo.Order().Inquiry(context.Background(), inquiryParams, nil)
+		if inquiryErr != nil {
+			lastInquiry = fmt.Sprintf("error=%v", inquiryErr)
+		} else {
+			lastInquiry = fmt.Sprintf("code=%s, msg=%s, data=%+v",
+				inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
+			t.Logf("Inquiry Response: paymentRequestID=%s, returnedPaymentRequestID=%s, attempt=%d, %s",
+				paymentRequestID, returnedPaymentRequestID, attempt, lastInquiry)
+			if inquiryResp.IsSuccess() && inquiryResp.GetData() != nil {
+				finalStatus = inquiryResp.GetData().OrderStatus
+				if finalStatus == "PAY_SUCCESS" {
+					t.Logf("Final Order Status: paymentRequestID=%s, acquiringOrderID=%s, status=%s",
+						paymentRequestID, data.AcquiringOrderID, finalStatus)
+					return
+				}
+			}
 		}
-	} else {
-		t.Logf("Inquiry failed: paymentRequestID=%s, returnedPaymentRequestID=%s, code=%s, msg=%s, data=%+v",
-			paymentRequestID, returnedPaymentRequestID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
-		t.Skipf("Credit card payment status could not be verified: code=%s, msg=%s",
-			inquiryResp.GetCode(), inquiryResp.GetMessage())
+		t.Logf("Waiting for PAY_SUCCESS: paymentRequestID=%s, acquiringOrderID=%s, attempt=%d, status=%s",
+			paymentRequestID, data.AcquiringOrderID, attempt, finalStatus)
+		time.Sleep(3 * time.Second)
 	}
+
+	t.Fatalf("Credit card payment did not reach PAY_SUCCESS: paymentRequestID=%s, returnedPaymentRequestID=%s, acquiringOrderID=%s, finalStatus=%s, lastInquiry=%s",
+		paymentRequestID, returnedPaymentRequestID, data.AcquiringOrderID, finalStatus, lastInquiry)
 }
 
 func TestCreateOrder_WithoutOrderRequestedAt_AutoInjected(t *testing.T) {

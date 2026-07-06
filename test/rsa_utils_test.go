@@ -1,11 +1,20 @@
 package test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/waffo-com/waffo-go/errors"
 	"github.com/waffo-com/waffo-go/utils"
 )
+
+const friendlyPrivateKeyMessage = "Invalid private key format. Please provide an unencrypted PKCS#8 private key."
+const pkcs1PrivateKeyPEM = "-----BEGIN RSA PRIVATE KEY-----\n" +
+	"bm90LWEta2V5\n" +
+	"-----END RSA PRIVATE KEY-----"
+const encryptedPrivateKeyPEM = "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" +
+	"bm90LWEta2V5\n" +
+	"-----END ENCRYPTED PRIVATE KEY-----"
 
 // getTestKeyPair generates a fresh key pair for testing
 // We use generated keys because test-vectors/rsa-signing.json contains placeholder keys
@@ -15,6 +24,39 @@ func getTestKeyPair(t *testing.T) *utils.KeyPair {
 		t.Fatalf("GenerateKeyPair() failed: %v", err)
 	}
 	return keyPair
+}
+
+func toPKCS8PrivateKeyPEM(base64PrivateKey string) string {
+	var builder strings.Builder
+	builder.WriteString("-----BEGIN PRIVATE KEY-----\n")
+	for len(base64PrivateKey) > 64 {
+		builder.WriteString(base64PrivateKey[:64])
+		builder.WriteByte('\n')
+		base64PrivateKey = base64PrivateKey[64:]
+	}
+	builder.WriteString(base64PrivateKey)
+	builder.WriteString("\n-----END PRIVATE KEY-----")
+	return builder.String()
+}
+
+func assertFriendlyPrivateKeyError(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected private key validation to fail")
+	}
+	waffoErr, ok := err.(*errors.WaffoError)
+	if !ok {
+		t.Fatalf("expected WaffoError, got %T", err)
+	}
+	if waffoErr.ErrorCode != errors.CodeInvalidPrivateKey {
+		t.Fatalf("expected error code %s, got %s", errors.CodeInvalidPrivateKey, waffoErr.ErrorCode)
+	}
+	if waffoErr.Message != friendlyPrivateKeyMessage {
+		t.Fatalf("expected friendly message %q, got %q", friendlyPrivateKeyMessage, waffoErr.Message)
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "wrong tag") {
+		t.Fatalf("error should not expose wrong tag detail: %v", err)
+	}
 }
 
 func TestSignAndVerify(t *testing.T) {
@@ -104,6 +146,27 @@ func TestValidatePrivateKey(t *testing.T) {
 			t.Errorf("Expected error code %s, got %s", errors.CodeInvalidPrivateKey, waffoErr.ErrorCode)
 		}
 	}
+
+	// PKCS#8 PEM key
+	pemKey := toPKCS8PrivateKeyPEM(keyPair.PrivateKey)
+	if err := utils.ValidatePrivateKey(pemKey); err != nil {
+		t.Errorf("ValidatePrivateKey() should succeed for PKCS#8 PEM: %v", err)
+	}
+
+	signature, err := utils.Sign(`{"test":"pem"}`, pemKey)
+	if err != nil {
+		t.Fatalf("Sign() should succeed for PKCS#8 PEM: %v", err)
+	}
+	if !utils.Verify(`{"test":"pem"}`, signature, keyPair.PublicKey) {
+		t.Fatal("Verify() should succeed for signature created with PKCS#8 PEM")
+	}
+
+	assertFriendlyPrivateKeyError(t, utils.ValidatePrivateKey(pkcs1PrivateKeyPEM))
+	assertFriendlyPrivateKeyError(t, utils.ValidatePrivateKey(encryptedPrivateKeyPEM))
+	assertFriendlyPrivateKeyError(t, utils.ValidatePrivateKey("not-a-key"))
+
+	_, err = utils.Sign("{}", pkcs1PrivateKeyPEM)
+	assertFriendlyPrivateKeyError(t, err)
 }
 
 func TestValidatePublicKey(t *testing.T) {

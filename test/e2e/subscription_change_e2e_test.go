@@ -108,81 +108,19 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 
 	checkoutURL := createData.FetchRedirectURL()
 	if checkoutURL == "" {
-		t.Log("No checkout URL, subscription may be auto-activated or requires different flow")
+		t.Fatalf("Original subscription checkout URL is empty: subscriptionRequest=%s, subscriptionID=%s, data=%+v",
+			originalSubscriptionRequest, originalSubscriptionID, createData)
 	} else {
-		if err := base.NavigateTo(checkoutURL); err != nil {
-			t.Fatalf("Failed to navigate to checkout: %v", err)
-		}
-
-		base.WaitForPageLoad()
-		base.SleepMs(2000)
-
-		// Fill card details
-		base.Fill("#payMethodProperties\\.card\\.pan", TestCard.Number)
-		base.SleepMs(300)
-		expiry := fmt.Sprintf("%s/%s", TestCard.ExpiryMonth, TestCard.ExpiryYear[2:])
-		base.Fill("#payMethodProperties\\.card\\.expiry", expiry)
-		base.SleepMs(300)
-		base.Fill("#payMethodProperties\\.card\\.cvv", TestCard.CVV)
-		base.SleepMs(300)
-		base.Fill("#payMethodProperties\\.card\\.name", TestCard.Holder)
-		base.SleepMs(300)
-
-		base.TakeScreenshot("subscription_change_step2_card_filled")
-
-		// Submit payment
-		if err := base.Click("button[type='submit']"); err != nil {
-			t.Logf("Warning: Could not click submit button: %v", err)
-		}
-
 		base.SetTimeout(60000)
-		if err := base.WaitForURLContains("success"); err != nil {
-			t.Logf("Did not redirect to success page: %v", err)
-			base.PrintCurrentURL()
-		} else {
-			t.Log("Original subscription payment successful!")
-		}
-
-		base.TakeScreenshot("subscription_change_step2_completed")
-	}
-
-	// Wait for subscription to become active
-	base.SleepMs(3000)
-
-	// Verify subscription is active
-	inquiryParams := &subscription.InquirySubscriptionParams{
-		SubscriptionRequest: originalSubscriptionRequest,
-	}
-
-	inquiryResp, err := testWaffo.Subscription().Inquiry(context.Background(), inquiryParams, nil)
-	if err != nil {
-		t.Logf("Warning: Failed to query subscription: subscriptionRequest=%s, subscriptionID=%s, error=%v",
-			originalSubscriptionRequest, originalSubscriptionID, err)
-		t.Skip("Original subscription status could not be verified in sandbox")
-	} else {
-		t.Logf("Inquiry Response: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
-			originalSubscriptionRequest, originalSubscriptionID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
-
-		if inquiryResp.IsSuccess() {
-			inquiryData := inquiryResp.GetData()
-			if inquiryData == nil {
-				t.Fatalf("Original subscription inquiry data is nil: subscriptionRequest=%s, subscriptionID=%s",
-					originalSubscriptionRequest, originalSubscriptionID)
-			}
-			t.Logf("Original Subscription Status: subscriptionRequest=%s, subscriptionID=%s, status=%s",
-				originalSubscriptionRequest, originalSubscriptionID, inquiryData.SubscriptionStatus)
-
-			if inquiryData.SubscriptionStatus != "ACTIVE" {
-				t.Skipf("Original subscription remained %s in sandbox; cannot verify subscription change",
-					inquiryData.SubscriptionStatus)
-			}
-		} else {
-			t.Logf("Inquiry failed: subscriptionRequest=%s, subscriptionID=%s, code=%s, msg=%s, data=%+v",
-				originalSubscriptionRequest, originalSubscriptionID, inquiryResp.GetCode(), inquiryResp.GetMessage(), inquiryResp.GetData())
-			t.Skipf("Original subscription status could not be verified: code=%s, msg=%s",
-				inquiryResp.GetCode(), inquiryResp.GetMessage())
+		if !base.CompleteCheckout(t, checkoutURL, "subscription_change_original_checkout", SubscriptionCheckoutCard()) {
+			t.Fatalf("Original subscription checkout did not complete: subscriptionRequest=%s, subscriptionID=%s, currentURL=%s",
+				originalSubscriptionRequest, originalSubscriptionID, base.Page.URL())
 		}
 	}
+
+	inquiryData := requireSubscriptionStatus(t, originalSubscriptionRequest, "ACTIVE", 20, 3*time.Second)
+	t.Logf("Original Subscription Status: subscriptionRequest=%s, subscriptionID=%s, status=%s",
+		originalSubscriptionRequest, originalSubscriptionID, inquiryData.SubscriptionStatus)
 
 	// ==================== Step 3: Execute Subscription Change (Upgrade) ====================
 	t.Log("=== Step 3: Executing subscription change (upgrade) ===")
@@ -260,35 +198,24 @@ func TestSubscriptionChange_UpgradeSubscription(t *testing.T) {
 
 	base.TakeScreenshot("subscription_change_step3_completed")
 
+	if changeData.SubscriptionChangeStatus == "AUTHORIZATION_REQUIRED" {
+		authURL := changeData.FetchRedirectURL()
+		if authURL == "" {
+			t.Fatalf("Subscription change requires authorization but no auth URL returned: newSubscriptionRequest=%s, originSubscriptionRequest=%s, data=%+v",
+				newSubscriptionRequest, originalSubscriptionRequest, changeData)
+		}
+		base.SetTimeout(60000)
+		if !base.CompleteCheckout(t, authURL, "subscription_change_auth_checkout", SubscriptionCheckoutCard()) {
+			t.Fatalf("Subscription change authorization did not complete: newSubscriptionRequest=%s, originSubscriptionRequest=%s, currentURL=%s",
+				newSubscriptionRequest, originalSubscriptionRequest, base.Page.URL())
+		}
+	}
+
 	// ==================== Step 4: Query Change Status ====================
 	t.Log("=== Step 4: Querying subscription change status ===")
-
-	changeInquiryParams := &subscription.ChangeInquiryParams{
-		OriginSubscriptionRequest: originalSubscriptionRequest,
-		SubscriptionRequest:       newSubscriptionRequest,
-	}
-
-	changeInquiryResp, err := testWaffo.Subscription().ChangeInquiry(context.Background(), changeInquiryParams, nil)
-	if err != nil {
-		t.Fatalf("Failed to query change status: newSubscriptionRequest=%s, originSubscriptionRequest=%s, error=%v",
-			newSubscriptionRequest, originalSubscriptionRequest, err)
-	}
-
-	t.Logf("Change Inquiry Response: newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
-		newSubscriptionRequest, originalSubscriptionRequest, changeInquiryResp.GetCode(), changeInquiryResp.GetMessage(), changeInquiryResp.GetData())
-
-	if changeInquiryResp.IsSuccess() {
-		changeInquiryData := changeInquiryResp.GetData()
-		if changeInquiryData == nil {
-			t.Fatalf("Change inquiry data is nil: newSubscriptionRequest=%s, originSubscriptionRequest=%s",
-				newSubscriptionRequest, originalSubscriptionRequest)
-		}
-		t.Logf("Change Inquiry: subscriptionID=%s, changeStatus=%s, originSubscriptionRequest=%s",
-			changeInquiryData.SubscriptionID, changeInquiryData.SubscriptionChangeStatus, changeInquiryData.OriginSubscriptionRequest)
-	} else {
-		t.Fatalf("Change inquiry failed after successful change API call: newSubscriptionRequest=%s, originSubscriptionRequest=%s, code=%s, msg=%s, data=%+v",
-			newSubscriptionRequest, originalSubscriptionRequest, changeInquiryResp.GetCode(), changeInquiryResp.GetMessage(), changeInquiryResp.GetData())
-	}
+	changeInquiryData := requireSubscriptionChangeStatus(t, originalSubscriptionRequest, newSubscriptionRequest, "SUCCESS", 20, 3*time.Second)
+	t.Logf("Change Inquiry: subscriptionID=%s, changeStatus=%s, originSubscriptionRequest=%s",
+		changeInquiryData.SubscriptionID, changeInquiryData.SubscriptionChangeStatus, changeInquiryData.OriginSubscriptionRequest)
 
 	base.TakeScreenshot("subscription_change_step4_inquiry")
 	t.Log("=== Subscription Change Test Completed ===")

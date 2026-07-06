@@ -104,8 +104,13 @@ type SubscriptionGoodsInfo struct {
 
 // SubscriptionAddressInfo represents address information for subscriptions.
 type SubscriptionAddressInfo struct {
-	ShippingAddress *SubscriptionAddress `json:"shippingAddress,omitempty"`
-	BillingAddress  *SubscriptionAddress `json:"billingAddress,omitempty"`
+	Address            string               `json:"address,omitempty"`
+	City               string               `json:"city,omitempty"`
+	Region             string               `json:"region,omitempty"`
+	Postcode           string               `json:"postcode,omitempty"`
+	AddressCountryCode string               `json:"addressCountryCode,omitempty"`
+	ShippingAddress    *SubscriptionAddress `json:"shippingAddress,omitempty"`
+	BillingAddress     *SubscriptionAddress `json:"billingAddress,omitempty"`
 }
 
 // SubscriptionAddress represents a physical address.
@@ -137,13 +142,22 @@ type SubscriptionPaymentInfo struct {
 	PayMethodUserAccountNo   string `json:"payMethodUserAccountNo,omitempty"`
 	PayMethodResponse        string `json:"payMethodResponse,omitempty"`
 	CashierLanguage          string `json:"cashierLanguage,omitempty"`
+	CashierAppearance        string `json:"cashierAppearance,omitempty"`
 }
 
 // SubscriptionRiskData represents risk control data for subscriptions.
 type SubscriptionRiskData struct {
-	DeviceType    string `json:"deviceType,omitempty"`
-	DeviceId      string `json:"deviceId,omitempty"`
-	DeviceTokenId string `json:"deviceTokenId,omitempty"`
+	UserType            string `json:"userType,omitempty"`
+	UserCategory        string `json:"userCategory,omitempty"`
+	UserLegalName       string `json:"userLegalName,omitempty"`
+	UserDisplayName     string `json:"userDisplayName,omitempty"`
+	UserRegistrationIp  string `json:"userRegistrationIp,omitempty"`
+	UserLastSeenIp      string `json:"userLastSeenIp,omitempty"`
+	UserIsNew           string `json:"userIsNew,omitempty"`
+	UserIsFirstPurchase string `json:"userIsFirstPurchase,omitempty"`
+	DeviceType          string `json:"deviceType,omitempty"`
+	DeviceId            string `json:"deviceId,omitempty"`
+	DeviceTokenId       string `json:"deviceTokenId,omitempty"`
 }
 
 // CreateSubscriptionData represents the response data for subscription creation.

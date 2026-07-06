@@ -193,9 +193,9 @@ func TestCaptureFlow_ManualCapture(t *testing.T) {
 			paymentRequestID, acquiringOrderID)
 	}
 
-	// If sandbox doesn't support manualCapture, skip capture step
 	if finalStatus == core.OrderStatusPaySuccess {
-		t.Skip("Sandbox went straight to PAY_SUCCESS, capture not applicable")
+		t.Fatalf("Manual capture gate not proved: sandbox went straight to PAY_SUCCESS instead of AUTHED_WAITING_CAPTURE: paymentRequestID=%s, acquiringOrderID=%s",
+			paymentRequestID, acquiringOrderID)
 	}
 
 	if finalStatus != core.OrderStatusAuthedWaitingCapture {

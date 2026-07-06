@@ -136,10 +136,14 @@ type PaymentInfo struct {
 	ProductName              string `json:"productName,omitempty"`
 	PayMethodType            string `json:"payMethodType,omitempty"`
 	PayMethodName            string `json:"payMethodName,omitempty"`
+	PayMethodProperties      string `json:"payMethodProperties,omitempty"`
+	PayMethodResponse        string `json:"payMethodResponse,omitempty"`
 	PayMethodCountry         string `json:"payMethodCountry,omitempty"`
 	PayMethodUserAccountType string `json:"payMethodUserAccountType,omitempty"`
 	PayMethodUserAccountNo   string `json:"payMethodUserAccountNo,omitempty"`
+	PayOption                string `json:"payOption,omitempty"`
 	CashierLanguage          string `json:"cashierLanguage,omitempty"`
+	CashierAppearance        string `json:"cashierAppearance,omitempty"`
 	UserPaymentAccessToken   string `json:"userPaymentAccessToken,omitempty"`
 	CaptureMode              string `json:"captureMode,omitempty"`
 	MerchantInitiatedMode    string `json:"merchantInitiatedMode,omitempty"`

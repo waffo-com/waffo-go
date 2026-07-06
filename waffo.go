@@ -35,15 +35,18 @@ type Waffo struct {
 	httpClient *core.WaffoHttpClient
 
 	// Lazy-initialized resources
-	order            *resources.OrderResource
-	subscription     *resources.SubscriptionResource
-	refund           *resources.RefundResource
-	merchantConfig   *resources.MerchantConfigResource
-	payMethodConfig  *resources.PayMethodConfigResource
+	order           *resources.OrderResource
+	subscription    *resources.SubscriptionResource
+	refund          *resources.RefundResource
+	merchantConfig  *resources.MerchantConfigResource
+	payMethodConfig *resources.PayMethodConfigResource
 }
 
 // New creates a new Waffo SDK instance.
 func New(cfg *config.WaffoConfig) *Waffo {
+	if err := cfg.Validate(); err != nil {
+		panic(err)
+	}
 	return &Waffo{
 		config:     cfg,
 		httpClient: core.NewWaffoHttpClient(cfg),

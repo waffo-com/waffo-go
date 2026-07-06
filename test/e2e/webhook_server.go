@@ -45,6 +45,7 @@ func NewWebhookTestServer(handler *core.WebhookHandler, port int) *WebhookTestSe
 // Start starts the webhook server.
 func (s *WebhookTestServer) Start() error {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/webhook", s.handleWebhook)
 
 	s.server = &http.Server{
@@ -254,4 +255,13 @@ func (s *WebhookTestServer) handleWebhook(w http.ResponseWriter, r *http.Request
 	w.Header().Set("X-SIGNATURE", result.ResponseSignature)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(result.ResponseBody))
+}
+
+func (s *WebhookTestServer) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 }

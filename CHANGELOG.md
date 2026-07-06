@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-07-06
+
+### Fixed
+
+- **`SubscriptionManagementURL` compatibility**: Kept `Subscription().Create()` backward compatible when `SubscriptionManagementURL` is omitted. The field remains supported, but the SDK no longer rejects existing payloads before sending the API call.
+
 ## [1.4.0] - 2026-05-13
 
 ### Added

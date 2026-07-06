@@ -498,47 +498,7 @@ func requireSubscriptionStatusNotification(t *testing.T, eventType, subscription
 func tryAuthorizeSubscriptionChange(t *testing.T, base *BaseE2ETest) bool {
 	t.Helper()
 
-	cardSelector := "#payMethodProperties\\.card\\.pan"
-	cardCount, _ := base.Page.Locator(cardSelector).Count()
-	if cardCount > 0 {
-		return completePaymentFlow(t, base.Page)
-	}
-
-	buttons, _ := base.Page.Locator("button, a").All()
-	t.Logf("  Auth page has %d button/link candidate(s)", len(buttons))
-	for i, btn := range buttons {
-		if i >= 20 {
-			break
-		}
-		text, _ := btn.TextContent()
-		trimmed := strings.TrimSpace(text)
-		if trimmed != "" {
-			t.Logf("    auth candidate: %q", trimmed)
-		}
-	}
-
-	selectors := []string{
-		"button:has-text('確認')",
-		"button:has-text('确认')",
-		"button:has-text('Confirm')",
-		"button:has-text('Pay')",
-		"button:has-text('Submit')",
-		"button[type='submit']",
-	}
-	for _, sel := range selectors {
-		count, _ := base.Page.Locator(sel).Count()
-		if count == 0 {
-			continue
-		}
-		if err := base.Page.Locator(sel).First().Click(); err != nil {
-			t.Logf("  Failed to click auth selector %s: %v", sel, err)
-			continue
-		}
-		t.Logf("  Clicked subscription change auth selector: %s", sel)
-		return waitForPaymentResultGo(t, base.Page)
-	}
-
-	return false
+	return base.CompleteCurrentCheckout(t, SubscriptionCheckoutCard())
 }
 
 // ==================== Test 1: Subscription Activation ====================
@@ -627,18 +587,11 @@ func TestWebhook_SubscriptionActivation(t *testing.T) {
 
 	// 2. Complete payment via Playwright
 	t.Log("=== Step 2: Completing payment ===")
-	if err := base.NavigateTo(checkoutURL); err != nil {
-		t.Fatalf("Failed to navigate to checkout: %v", err)
-	}
-
-	base.WaitForPageLoad()
-	base.SleepMs(3000)
-
-	paymentSuccess := completePaymentFlow(t, base.Page)
+	paymentSuccess := base.CompleteCheckout(t, checkoutURL, "webhook_subscription_activation", SubscriptionCheckoutCard())
 	t.Logf("  Payment result: %v", paymentSuccess)
 	if !paymentSuccess {
-		t.Skipf("Subscription checkout did not complete in sandbox: subscriptionRequest=%s, subscriptionID=%s",
-			webhookSubRequest, webhookSubID)
+		t.Fatalf("Subscription checkout did not complete: subscriptionRequest=%s, subscriptionID=%s, checkoutURL=%s, currentURL=%s",
+			webhookSubRequest, webhookSubID, checkoutURL, base.Page.URL())
 	}
 
 	// 3. Wait for SUBSCRIPTION_STATUS_NOTIFICATION
@@ -745,8 +698,8 @@ func TestWebhook_SubscriptionPeriodChanged(t *testing.T) {
 	}
 
 	if managementURL == "" {
-		t.Log("Could not get managementUrl - skipping period changed test")
-		t.Skip("managementUrl not available")
+		t.Fatalf("Could not get managementUrl: subscriptionRequest=%s, subscriptionID=%s",
+			webhookSubRequest, webhookSubID)
 	}
 
 	// Navigate to management page and simulate next period
@@ -813,7 +766,8 @@ func TestWebhook_SubscriptionPeriodChanged(t *testing.T) {
 
 	if !clicked {
 		t.Log("Could not find 'simulate next period' button on management page")
-		t.Skip("Simulate next period button not found")
+		t.Fatalf("Simulate next period button not found: subscriptionRequest=%s, subscriptionID=%s, managementURL=%s, currentURL=%s",
+			webhookSubRequest, webhookSubID, managementURL, base.Page.URL())
 	}
 
 	// Wait for SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION
@@ -1084,24 +1038,24 @@ func TestWebhook_SubscriptionChange(t *testing.T) {
 
 	createResp, err := testWaffo.Subscription().Create(context.Background(), createParams, nil)
 	if err != nil {
-		t.Logf("[SubscriptionChange E2E] Create subscription error: changeSubRequest=%s, error=%v", changeSubRequest, err)
-		t.Skip("Subscription change prerequisite could not be created in sandbox")
+		t.Fatalf("[SubscriptionChange E2E] Create subscription error: changeSubRequest=%s, error=%v", changeSubRequest, err)
 	}
 	if !createResp.IsSuccess() {
-		t.Logf("[SubscriptionChange E2E] Create subscription failed: changeSubRequest=%s, code=%s, msg=%s",
-			changeSubRequest, createResp.GetCode(), createResp.GetMessage())
-		t.Skip("Subscription change prerequisite could not be created in sandbox")
+		t.Fatalf("[SubscriptionChange E2E] Create subscription failed: changeSubRequest=%s, code=%s, msg=%s, data=%+v",
+			changeSubRequest, createResp.GetCode(), createResp.GetMessage(), createResp.GetData())
 	}
 
 	createData := createResp.GetData()
 	if createData == nil {
-		t.Skip("[SubscriptionChange E2E] Create subscription data is nil")
+		t.Fatalf("[SubscriptionChange E2E] Create subscription data is nil: changeSubRequest=%s, code=%s, msg=%s",
+			changeSubRequest, createResp.GetCode(), createResp.GetMessage())
 	}
 
 	origSubID := createData.SubscriptionID
 	checkoutURL := createData.FetchRedirectURL()
 	if checkoutURL == "" {
-		t.Skip("[SubscriptionChange E2E] No checkout URL available")
+		t.Fatalf("[SubscriptionChange E2E] No checkout URL available: changeSubRequest=%s, subscriptionID=%s, data=%+v",
+			changeSubRequest, origSubID, createData)
 	}
 
 	t.Logf("  origSubID: %s", origSubID)
@@ -1111,22 +1065,16 @@ func TestWebhook_SubscriptionChange(t *testing.T) {
 	t.Log("=== [SubscriptionChange E2E] Step 2: Activating subscription ===")
 	activationBase := &BaseE2ETest{}
 	if err := activationBase.Setup(); err != nil {
-		t.Logf("[SubscriptionChange E2E] Browser setup failed: %v", err)
-		t.Skip("Skipping due to browser setup failure")
+		t.Fatalf("[SubscriptionChange E2E] Browser setup failed after create: changeSubRequest=%s, subscriptionID=%s, error=%v",
+			changeSubRequest, origSubID, err)
 	}
 	defer activationBase.Teardown()
 
-	if err := activationBase.NavigateTo(checkoutURL); err != nil {
-		t.Logf("[SubscriptionChange E2E] Navigate to checkout failed: changeSubRequest=%s, error=%v", changeSubRequest, err)
-		t.Skip("Subscription change activation checkout could not be opened in sandbox")
-	}
-	activationBase.WaitForPageLoad()
-	activationBase.SleepMs(3000)
-	activated := completePaymentFlow(t, activationBase.Page)
+	activated := activationBase.CompleteCheckout(t, checkoutURL, "webhook_subscription_change_activation", SubscriptionCheckoutCard())
 	t.Logf("  Activation result: %v", activated)
 	if !activated {
-		t.Skipf("Subscription change prerequisite did not activate in sandbox: subscriptionRequest=%s, subscriptionID=%s",
-			changeSubRequest, origSubID)
+		t.Fatalf("Subscription change prerequisite did not activate: subscriptionRequest=%s, subscriptionID=%s, checkoutURL=%s, currentURL=%s",
+			changeSubRequest, origSubID, checkoutURL, activationBase.Page.URL())
 	}
 	requireSubscriptionStatusNotification(
 		t,
@@ -1211,26 +1159,27 @@ func TestWebhook_SubscriptionChange(t *testing.T) {
 		t.Log("=== [SubscriptionChange E2E] Step 4: Handling AUTHORIZATION_REQUIRED ===")
 		authURL := changeData.FetchRedirectURL()
 		if authURL == "" {
-			t.Skipf("Subscription change requires authorization but no auth URL was returned: newSubRequest=%s",
-				newSubRequest)
+			t.Fatalf("Subscription change requires authorization but no auth URL was returned: newSubRequest=%s, originSubRequest=%s, data=%+v",
+				newSubRequest, changeSubRequest, changeData)
 		}
 		t.Logf("  authURL: %s", authURL)
 		authBase := &BaseE2ETest{}
 		if err := authBase.Setup(); err != nil {
-			t.Skipf("Subscription change auth browser setup failed: %v", err)
+			t.Fatalf("Subscription change auth browser setup failed: newSubRequest=%s, originSubRequest=%s, error=%v",
+				newSubRequest, changeSubRequest, err)
 		}
 		defer authBase.Teardown()
 		if err := authBase.NavigateTo(authURL); err != nil {
-			t.Skipf("Subscription change auth page could not be opened in sandbox: newSubRequest=%s, error=%v",
-				newSubRequest, err)
+			t.Fatalf("Subscription change auth page could not be opened in sandbox: newSubRequest=%s, originSubRequest=%s, authURL=%s, error=%v",
+				newSubRequest, changeSubRequest, authURL, err)
 		}
 		authBase.WaitForPageLoad()
 		authBase.SleepMs(3000)
 		authSuccess := tryAuthorizeSubscriptionChange(t, authBase)
 		t.Logf("  Auth result: %v", authSuccess)
 		if !authSuccess {
-			t.Skipf("Subscription change auth page did not expose a supported authorization control: newSubRequest=%s",
-				newSubRequest)
+			t.Fatalf("Subscription change auth did not complete: newSubRequest=%s, originSubRequest=%s, authURL=%s, currentURL=%s",
+				newSubRequest, changeSubRequest, authURL, authBase.Page.URL())
 		}
 	}
 

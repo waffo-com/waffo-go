@@ -70,6 +70,16 @@ func TestMerchantConfig_InquiryPayMethodConfig(t *testing.T) {
 		t.Fatalf("Pay method config data is nil: merchantID=%s, code=%s, msg=%s",
 			testConfig.MerchantID, resp.GetCode(), resp.GetMessage())
 	}
+	if len(data.PayMethodDetails) == 0 {
+		t.Fatalf("Pay method config payMethodDetails is empty: merchantID=%s, data=%+v",
+			testConfig.MerchantID, data)
+	}
+	firstDetail := data.PayMethodDetails[0]
+	if firstDetail.ProductName == "" || firstDetail.PayMethodName == "" ||
+		firstDetail.Country == "" || firstDetail.CurrentStatus == "" {
+		t.Fatalf("Pay method detail missing required fields: merchantID=%s, detail=%+v",
+			testConfig.MerchantID, firstDetail)
+	}
 
 	t.Logf("Pay Method Config: merchantID=%s, payMethodDetails=%+v", testConfig.MerchantID, data.PayMethodDetails)
 }
