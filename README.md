@@ -493,6 +493,40 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 }, nil)
 ```
 
+### Wallet Address Inquiry (x402)
+
+Inquire the on-chain stablecoin receiving address for an x402 payment. The response returns the target network, the on-chain token contract, and the Waffo platform wallet address to send funds to. Phase 1 supports `USDC`.
+
+```go
+import "github.com/waffo-com/waffo-go/types/wallet"
+
+// PaymentRequestID: unique idempotency key; OrderCurrency: Phase 1 supports USDC
+// MerchantInfo is auto-injected from config when MerchantID is set
+resp, err := client.Wallet().Inquiry(ctx, &wallet.WalletInquiryParams{
+    PaymentRequestID: "unique-request-id",
+    OrderCurrency:    "USDC",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("Network: %s\n", data.Network) // CAIP-2 network id, e.g. eip155:8453 (Base mainnet)
+    fmt.Printf("Asset: %s\n", data.Asset)      // on-chain token contract address
+    fmt.Printf("Pay to: %s\n", data.PayTo)     // Waffo platform receiving wallet address
+} else {
+    fmt.Printf("Wallet inquiry failed: %s %s\n", resp.GetCode(), resp.GetMessage())
+}
+```
+
+#### Wallet Inquiry Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `network` | CAIP-2 network id (Phase 1: `eip155:8453`, Base mainnet) |
+| `asset` | On-chain token contract address for the network + currency |
+| `payTo` | Waffo platform receiving wallet address (send funds here) |
+
 ## Webhook Handling
 
 ### Handler Chaining

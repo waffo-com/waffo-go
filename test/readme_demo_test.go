@@ -25,6 +25,7 @@ import (
 	"github.com/waffo-com/waffo-go/types/order"
 	"github.com/waffo-com/waffo-go/types/refund"
 	"github.com/waffo-com/waffo-go/types/subscription"
+	"github.com/waffo-com/waffo-go/types/wallet"
 	"github.com/waffo-com/waffo-go/utils"
 )
 
@@ -184,12 +185,12 @@ func TestReadmeDemo_CreateOrder(t *testing.T) {
 
 	// README example: create a payment order
 	params := &order.CreateOrderParams{
-		PaymentRequestID: paymentRequestID,
-		MerchantOrderID:  merchantOrderID,
-		OrderCurrency:    "HKD",
-		OrderAmount:      "100.00",
-		OrderDescription: "Test Product",
-		NotifyURL:        "https://your-site.com/webhook",
+		PaymentRequestID:   paymentRequestID,
+		MerchantOrderID:    merchantOrderID,
+		OrderCurrency:      "HKD",
+		OrderAmount:        "100.00",
+		OrderDescription:   "Test Product",
+		NotifyURL:          "https://your-site.com/webhook",
 		SuccessRedirectURL: "https://your-site.com/success",
 		FailedRedirectURL:  "https://your-site.com/failed",
 		CancelRedirectURL:  "https://your-site.com/cancel",
@@ -425,9 +426,9 @@ func TestReadmeDemo_CreateSubscription(t *testing.T) {
 			NumberOfPeriod: "12",
 		},
 		UserInfo: &subscription.SubscriptionUserInfo{
-			UserID:       "user_123",
-			UserEmail:    "user@example.com",
-			UserTerminal: "WEB",
+			UserID:        "user_123",
+			UserEmail:     "user@example.com",
+			UserTerminal:  "WEB",
 			UserFirstName: "Test",
 			UserLastName:  "User",
 		},
@@ -721,6 +722,42 @@ func TestReadmeDemo_QueryPayMethodConfig(t *testing.T) {
 		t.Logf("Query pay method config response: code=%s, msg=%s (may require merchantId at top level)",
 			resp.GetCode(), resp.GetMessage())
 	}
+}
+
+// ==================== Wallet Address Inquiry (x402) ====================
+
+// TestReadmeDemo_WalletInquiry verifies the successful x402 wallet inquiry response.
+func TestReadmeDemo_WalletInquiry(t *testing.T) {
+	client := newReadmeDemoClient(t)
+
+	paymentRequestID := generateRequestID()
+
+	// README example: inquire the x402 stablecoin receiving address
+	resp, err := client.Wallet().Inquiry(context.Background(), &wallet.WalletInquiryParams{
+		PaymentRequestID: paymentRequestID,
+		OrderCurrency:    "USDC",
+	}, nil)
+	if err != nil {
+		t.Fatalf("Wallet inquiry returned unexpected Go error: paymentRequestID=%s, err=%v", paymentRequestID, err)
+	}
+	if resp == nil {
+		t.Fatalf("Wallet inquiry response should not be nil: paymentRequestID=%s", paymentRequestID)
+	}
+
+	if !resp.IsSuccess() {
+		t.Fatalf("Wallet inquiry should succeed: paymentRequestID=%s, code=%s, msg=%s, data=%+v",
+			paymentRequestID, resp.GetCode(), resp.GetMessage(), resp.GetData())
+	}
+	data := resp.GetData()
+	if data == nil {
+		t.Fatalf("Wallet inquiry should return data: paymentRequestID=%s", paymentRequestID)
+	}
+	if strings.TrimSpace(data.Network) == "" || strings.TrimSpace(data.Asset) == "" || strings.TrimSpace(data.PayTo) == "" {
+		t.Fatalf("Wallet inquiry should return network, asset, and payTo: paymentRequestID=%s, data=%+v",
+			paymentRequestID, data)
+	}
+	t.Logf("Wallet inquiry succeeded: paymentRequestID=%s, network=%s, asset=%s, payTo=%s",
+		paymentRequestID, data.Network, data.Asset, data.PayTo)
 }
 
 // ==================== RSA Key Generation ====================

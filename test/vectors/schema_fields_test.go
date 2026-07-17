@@ -11,6 +11,7 @@ import (
 	"github.com/waffo-com/waffo-go/types/order"
 	"github.com/waffo-com/waffo-go/types/refund"
 	"github.com/waffo-com/waffo-go/types/subscription"
+	"github.com/waffo-com/waffo-go/types/wallet"
 )
 
 // schemaFieldsFile is the test vector generated from openapi.json
@@ -37,24 +38,25 @@ type jsonField struct {
 // goTypeRegistry maps "package.TypeName" → reflect.Type
 var goTypeRegistry = map[string]reflect.Type{
 	// Order
-	"order.CreateOrderParams":           reflect.TypeOf(order.CreateOrderParams{}),
-	"order.AcqOrderExtSubscriptionInfo": reflect.TypeOf(order.AcqOrderExtSubscriptionInfo{}),
-	"order.WaffoTokenCardData":          reflect.TypeOf(order.WaffoTokenCardData{}),
-	"order.CreateOrderData":             reflect.TypeOf(order.CreateOrderData{}),
-	"order.InquiryOrderParams":          reflect.TypeOf(order.InquiryOrderParams{}),
-	"order.InquiryOrderData":            reflect.TypeOf(order.InquiryOrderData{}),
-	"order.CancelOrderParams":           reflect.TypeOf(order.CancelOrderParams{}),
-	"order.CancelOrderData":             reflect.TypeOf(order.CancelOrderData{}),
-	"order.CaptureOrderParams":          reflect.TypeOf(order.CaptureOrderParams{}),
-	"order.CaptureOrderData":            reflect.TypeOf(order.CaptureOrderData{}),
-	"order.RefundOrderParams":           reflect.TypeOf(order.RefundOrderParams{}),
-	"order.RefundOrderData":             reflect.TypeOf(order.RefundOrderData{}),
-	"order.PaymentInfo":                 reflect.TypeOf(order.PaymentInfo{}),
+	"order.CreateOrderParams":  reflect.TypeOf(order.CreateOrderParams{}),
+	"order.X402Info":           reflect.TypeOf(order.X402Info{}),
+	"order.PromotionInfo":      reflect.TypeOf(order.PromotionInfo{}),
+	"order.CreateOrderData":    reflect.TypeOf(order.CreateOrderData{}),
+	"order.InquiryOrderParams": reflect.TypeOf(order.InquiryOrderParams{}),
+	"order.InquiryOrderData":   reflect.TypeOf(order.InquiryOrderData{}),
+	"order.CancelOrderParams":  reflect.TypeOf(order.CancelOrderParams{}),
+	"order.CancelOrderData":    reflect.TypeOf(order.CancelOrderData{}),
+	"order.CaptureOrderParams": reflect.TypeOf(order.CaptureOrderParams{}),
+	"order.CaptureOrderData":   reflect.TypeOf(order.CaptureOrderData{}),
+	"order.RefundOrderParams":  reflect.TypeOf(order.RefundOrderParams{}),
+	"order.RefundOrderData":    reflect.TypeOf(order.RefundOrderData{}),
+	"order.PaymentInfo":        reflect.TypeOf(order.PaymentInfo{}),
 	// Refund
 	"refund.InquiryRefundParams": reflect.TypeOf(refund.InquiryRefundParams{}),
 	"refund.InquiryRefundData":   reflect.TypeOf(refund.InquiryRefundData{}),
 	// Subscription
 	"subscription.CreateSubscriptionParams":      reflect.TypeOf(subscription.CreateSubscriptionParams{}),
+	"subscription.SubscriptionPromotionInfo":     reflect.TypeOf(subscription.SubscriptionPromotionInfo{}),
 	"subscription.CreateSubscriptionData":        reflect.TypeOf(subscription.CreateSubscriptionData{}),
 	"subscription.SubscriptionUserInfo":          reflect.TypeOf(subscription.SubscriptionUserInfo{}),
 	"subscription.SubscriptionPaymentInfo":       reflect.TypeOf(subscription.SubscriptionPaymentInfo{}),
@@ -85,6 +87,9 @@ var goTypeRegistry = map[string]reflect.Type{
 	"merchant.InquiryPayMethodConfigData":   reflect.TypeOf(merchant.InquiryPayMethodConfigData{}),
 	"merchant.PayMethodDetail":              reflect.TypeOf(merchant.PayMethodDetail{}),
 	"merchant.FixedMaintenanceRule":         reflect.TypeOf(merchant.FixedMaintenanceRule{}),
+	// Wallet
+	"wallet.WalletInquiryParams": reflect.TypeOf(wallet.WalletInquiryParams{}),
+	"wallet.WalletInquiryData":   reflect.TypeOf(wallet.WalletInquiryData{}),
 }
 
 // Required OpenAPI request fields that are intentionally omitted from the public
@@ -94,8 +99,8 @@ var autoInjectedRequiredFields = map[string]bool{
 	"AcqOrderCreateRequest.orderRequestedAt":    true,
 	"AcqOrderCancelRequest.merchantId":          true,
 	"AcqOrderCancelRequest.orderRequestedAt":    true,
-	"CaptureOrderRequest.merchantId":            true,
-	"CaptureOrderRequest.captureRequestedAt":    true,
+	"OrderCaptureRequest.merchantId":            true,
+	"OrderCaptureRequest.captureRequestedAt":    true,
 	"AcqOrderRefundRequest.merchantId":          true,
 	"AcqOrderRefundRequest.requestedAt":         true,
 	"AcqSubscriptionCreateRequest.merchantInfo": true,
@@ -104,6 +109,7 @@ var autoInjectedRequiredFields = map[string]bool{
 	"SubscriptionCancelRequest.requestedAt":     true,
 	"SubscriptionChangeRequest.merchantInfo":    true,
 	"SubscriptionChangeRequest.requestedAt":     true,
+	"WalletInquiryReq.merchantInfo":             true,
 }
 
 // getJSONTags extracts all json tag names from a struct type.

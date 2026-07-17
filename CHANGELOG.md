@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-17
+
+### Added
+
+- **Wallet and x402 support**: Added wallet address inquiry, x402 order data, promotion fields, and typed x402 payment webhook data.
+
+### Fixed
+
+- **Backward compatibility**: Kept deprecated legacy order and subscription fields/types available while aligning the active wire contract with the latest OpenAPI specification.
+- **Schema drift detection**: Release validation now fails when the shared schema field vector is stale.
+
 ## [1.4.1] - 2026-07-06
 
 ### Fixed

@@ -16,35 +16,47 @@ type SubscriptionInfo struct {
 	Period              string `json:"period,omitempty"`
 }
 
+// SubscriptionPromotionInfo represents promotion/coupon information attached to a subscription.
+type SubscriptionPromotionInfo struct {
+	PromotionCode string `json:"promotionCode,omitempty"`
+	CouponID      string `json:"couponId,omitempty"`
+}
+
 // CreateSubscriptionParams represents the parameters for creating a subscription.
 type CreateSubscriptionParams struct {
-	SubscriptionRequest       string                    `json:"subscriptionRequest"`
-	MerchantSubscriptionID    string                    `json:"merchantSubscriptionId"`
-	Currency                  string                    `json:"currency"`
-	Amount                    string                    `json:"amount"`
-	UserCurrency              string                    `json:"userCurrency,omitempty"`
-	ProductInfo               *ProductInfo              `json:"productInfo"`
-	MerchantInfo              *SubscriptionMerchantInfo `json:"merchantInfo,omitempty"`
-	UserInfo                  *SubscriptionUserInfo     `json:"userInfo"`
-	GoodsInfo                 *SubscriptionGoodsInfo    `json:"goodsInfo,omitempty"`
-	AddressInfo               *SubscriptionAddressInfo  `json:"addressInfo,omitempty"`
-	BrandInfo                 *SubscriptionBrandInfo    `json:"brandInfo,omitempty"`
-	PaymentInfo               *SubscriptionPaymentInfo  `json:"paymentInfo"`
-	RiskData                  *SubscriptionRiskData     `json:"riskData,omitempty"`
-	RequestedAt               string                    `json:"requestedAt,omitempty"`
-	OrderExpiredAt            string                    `json:"orderExpiredAt,omitempty"`
-	SuccessRedirectURL        string                    `json:"successRedirectUrl,omitempty"`
-	FailedRedirectURL         string                    `json:"failedRedirectUrl,omitempty"`
-	CancelRedirectURL         string                    `json:"cancelRedirectUrl,omitempty"`
-	SubscriptionManagementURL string                    `json:"subscriptionManagementUrl,omitempty"`
-	NotifyURL                 string                    `json:"notifyUrl"`
-	ExtendInfo                string                    `json:"extendInfo,omitempty"`
-	Metadata                  string                    `json:"metadata,omitempty"`
-	SubscriptionMode          string                    `json:"subscriptionMode,omitempty"`
-	AcqMerchant               interface{}               `json:"acqMerchant,omitempty"`
-	AcqProduct                interface{}               `json:"acqProduct,omitempty"`
-	AcqAgreements             []interface{}             `json:"acqAgreements,omitempty"`
-	ExtraParams               types.ExtraParams         `json:"extraParams,omitempty"`
+	SubscriptionRequest       string                     `json:"subscriptionRequest"`
+	MerchantSubscriptionID    string                     `json:"merchantSubscriptionId"`
+	Currency                  string                     `json:"currency"`
+	Amount                    string                     `json:"amount"`
+	PromotionInfo             *SubscriptionPromotionInfo `json:"promotionInfo,omitempty"`
+	StartTime                 string                     `json:"startTime,omitempty"`
+	UserCurrency              string                     `json:"userCurrency,omitempty"`
+	ProductInfo               *ProductInfo               `json:"productInfo"`
+	MerchantInfo              *SubscriptionMerchantInfo  `json:"merchantInfo,omitempty"`
+	UserInfo                  *SubscriptionUserInfo      `json:"userInfo"`
+	GoodsInfo                 *SubscriptionGoodsInfo     `json:"goodsInfo,omitempty"`
+	AddressInfo               *SubscriptionAddressInfo   `json:"addressInfo,omitempty"`
+	BrandInfo                 *SubscriptionBrandInfo     `json:"brandInfo,omitempty"`
+	PaymentInfo               *SubscriptionPaymentInfo   `json:"paymentInfo"`
+	RiskData                  *SubscriptionRiskData      `json:"riskData,omitempty"`
+	RequestedAt               string                     `json:"requestedAt,omitempty"`
+	OrderExpiredAt            string                     `json:"orderExpiredAt,omitempty"`
+	SuccessRedirectURL        string                     `json:"successRedirectUrl,omitempty"`
+	FailedRedirectURL         string                     `json:"failedRedirectUrl,omitempty"`
+	CancelRedirectURL         string                     `json:"cancelRedirectUrl,omitempty"`
+	SubscriptionManagementURL string                     `json:"subscriptionManagementUrl,omitempty"`
+	NotifyURL                 string                     `json:"notifyUrl"`
+	ExtendInfo                string                     `json:"extendInfo,omitempty"`
+	Metadata                  string                     `json:"metadata,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	SubscriptionMode string `json:"subscriptionMode,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	AcqMerchant interface{} `json:"acqMerchant,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	AcqProduct interface{} `json:"acqProduct,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	AcqAgreements []interface{}     `json:"acqAgreements,omitempty"`
+	ExtraParams   types.ExtraParams `json:"extraParams,omitempty"`
 }
 
 // ScheduledAmount represents a scheduled amount for a specific subscription period.
@@ -216,6 +228,7 @@ type InquirySubscriptionData struct {
 	PayMethodSubscriptionID   string                    `json:"payMethodSubscriptionId,omitempty"`
 	SubscriptionStatus        string                    `json:"subscriptionStatus,omitempty"`
 	SubscriptionAction        string                    `json:"subscriptionAction,omitempty"`
+	CancelReason              string                    `json:"cancelReason,omitempty"`
 	Currency                  string                    `json:"currency,omitempty"`
 	UserCurrency              string                    `json:"userCurrency,omitempty"`
 	Amount                    string                    `json:"amount,omitempty"`
@@ -294,11 +307,13 @@ type SubscriptionChangeProductInfo struct {
 type ChangeSubscriptionParams struct {
 	SubscriptionRequest       string                          `json:"subscriptionRequest"`
 	MerchantSubscriptionID    string                          `json:"merchantSubscriptionId,omitempty"`
+	PromotionInfo             *SubscriptionPromotionInfo      `json:"promotionInfo,omitempty"`
 	OriginSubscriptionRequest string                          `json:"originSubscriptionRequest"`
 	RemainingAmount           string                          `json:"remainingAmount"`
 	Currency                  string                          `json:"currency"`
 	UserCurrency              string                          `json:"userCurrency,omitempty"`
 	RequestedAt               string                          `json:"requestedAt"`
+	StartTime                 string                          `json:"startTime,omitempty"`
 	SuccessRedirectURL        string                          `json:"successRedirectUrl,omitempty"`
 	FailedRedirectURL         string                          `json:"failedRedirectUrl,omitempty"`
 	CancelRedirectURL         string                          `json:"cancelRedirectUrl,omitempty"`

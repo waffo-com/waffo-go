@@ -46,7 +46,12 @@ func TestWebhookHandlerPaymentNotification(t *testing.T) {
 			"paymentRequestId": "REQ123",
 			"orderStatus":      "PAY_SUCCESS",
 			"orderAmount":      "100.00",
-			"orderCurrency":    "USD",
+			"orderCurrency":    "USDC",
+			"x402Info": map[string]interface{}{
+				"x402Request":            true,
+				"paymentSignatureHeader": "x402-signature-value",
+				"x402Response":           "x402-response-payload",
+			},
 		},
 	}
 	payloadBytes, _ := json.Marshal(payload)
@@ -80,6 +85,16 @@ func TestWebhookHandlerPaymentNotification(t *testing.T) {
 
 	if receivedNotification.Result.OrderStatus != "PAY_SUCCESS" {
 		t.Errorf("Expected OrderStatus 'PAY_SUCCESS', got '%s'", receivedNotification.Result.OrderStatus)
+	}
+
+	if receivedNotification.Result.X402Info == nil {
+		t.Fatal("Expected x402Info to be parsed")
+	}
+	if !receivedNotification.Result.X402Info.X402Request {
+		t.Error("Expected x402Info.x402Request to be true")
+	}
+	if receivedNotification.Result.X402Info.PaymentSignatureHeader != "x402-signature-value" {
+		t.Errorf("Expected x402 payment signature header, got %q", receivedNotification.Result.X402Info.PaymentSignatureHeader)
 	}
 }
 

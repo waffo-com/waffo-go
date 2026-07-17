@@ -442,6 +442,40 @@ SDK 默认强制使用 TLS 1.2+，无需额外配置。
 transport := net.NewDefaultHttpTransport(timeout)
 ```
 
+#### 钱包地址查询示例 (x402)
+
+查询 x402 支付的链上稳定币收款地址。响应返回目标网络、链上代币合约地址，以及 Waffo 平台收款钱包地址。第一阶段支持 `USDC`。
+
+```go
+import "github.com/waffo-com/waffo-go/types/wallet"
+
+// PaymentRequestID: 唯一幂等键；OrderCurrency: 第一阶段支持 USDC
+// MerchantInfo 在配置了 MerchantID 时会自动注入
+resp, err := client.Wallet().Inquiry(ctx, &wallet.WalletInquiryParams{
+    PaymentRequestID: "unique-request-id",
+    OrderCurrency:    "USDC",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("Network: %s\n", data.Network) // CAIP-2 网络 ID，例如 eip155:8453（Base 主网）
+    fmt.Printf("Asset: %s\n", data.Asset)      // 链上代币合约地址
+    fmt.Printf("Pay to: %s\n", data.PayTo)     // Waffo 平台收款钱包地址
+} else {
+    fmt.Printf("钱包地址查询失败: %s %s\n", resp.GetCode(), resp.GetMessage())
+}
+```
+
+#### 钱包查询响应字段
+
+| 字段 | 说明 |
+|------|------|
+| `network` | CAIP-2 网络 ID（第一阶段：`eip155:8453`，Base 主网） |
+| `asset` | 该网络 + 币种对应的链上代币合约地址 |
+| `payTo` | Waffo 平台收款钱包地址（向此地址付款） |
+
 ## Webhook 处理
 
 ### 链式处理器

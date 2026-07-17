@@ -40,6 +40,7 @@ type Waffo struct {
 	refund          *resources.RefundResource
 	merchantConfig  *resources.MerchantConfigResource
 	payMethodConfig *resources.PayMethodConfigResource
+	wallet          *resources.WalletResource
 }
 
 // New creates a new Waffo SDK instance.
@@ -107,6 +108,14 @@ func (w *Waffo) PayMethodConfig() *resources.PayMethodConfigResource {
 		w.payMethodConfig = resources.NewPayMethodConfigResource(w.httpClient)
 	}
 	return w.payMethodConfig
+}
+
+// Wallet returns the WalletResource for x402 stablecoin wallet operations.
+func (w *Waffo) Wallet() *resources.WalletResource {
+	if w.wallet == nil {
+		w.wallet = resources.NewWalletResource(w.httpClient)
+	}
+	return w.wallet
 }
 
 // Webhook returns a new WebhookHandler for processing webhook notifications.

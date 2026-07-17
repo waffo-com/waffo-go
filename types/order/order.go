@@ -10,33 +10,39 @@ import (
 
 // CreateOrderParams represents the parameters for creating an order.
 type CreateOrderParams struct {
-	PaymentRequestID            string            `json:"paymentRequestId"`
-	MerchantOrderID             string            `json:"merchantOrderId"`
-	OrderCurrency               string            `json:"orderCurrency"`
-	OrderAmount                 string            `json:"orderAmount"`
-	UserCurrency                string            `json:"userCurrency,omitempty"`
-	OrderDescription            string            `json:"orderDescription"`
-	OrderRequestedAt            string            `json:"orderRequestedAt,omitempty"`
-	OrderExpiredAt              string            `json:"orderExpiredAt,omitempty"`
-	SuccessRedirectURL          string            `json:"successRedirectUrl,omitempty"`
-	FailedRedirectURL           string            `json:"failedRedirectUrl,omitempty"`
-	CancelRedirectURL           string            `json:"cancelRedirectUrl,omitempty"`
-	NotifyURL                   string            `json:"notifyUrl"`
-	ExtendInfo                  string            `json:"extendInfo,omitempty"`
-	MerchantInfo                *MerchantInfo     `json:"merchantInfo,omitempty"`
-	UserInfo                    *UserInfo         `json:"userInfo"`
-	GoodsInfo                   *GoodsInfo        `json:"goodsInfo,omitempty"`
-	PaymentInfo                 *PaymentInfo      `json:"paymentInfo"`
-	BrandInfo                   *BrandInfo        `json:"brandInfo,omitempty"`
-	CardInfo                    *CardInfo         `json:"cardInfo,omitempty"`
-	PaymentTokenData            *PaymentTokenData `json:"paymentTokenData,omitempty"`
-	RiskData                    *RiskData         `json:"riskData,omitempty"`
-	AddressInfo                 *AddressInfo      `json:"addressInfo,omitempty"`
-	ProductDetail               *ProductDetail    `json:"productDetail,omitempty"`
-	AcqOrderExtSubscriptionInfo interface{}       `json:"acqOrderExtSubscriptionInfo,omitempty"`
-	ChannelID                   string            `json:"channelId,omitempty"`
-	InnerCardData               interface{}       `json:"innerCardData,omitempty"`
-	ExtraParams                 types.ExtraParams `json:"extraParams,omitempty"`
+	PaymentRequestID   string            `json:"paymentRequestId"`
+	MerchantOrderID    string            `json:"merchantOrderId"`
+	OrderCurrency      string            `json:"orderCurrency"`
+	OrderAmount        string            `json:"orderAmount"`
+	UserCurrency       string            `json:"userCurrency,omitempty"`
+	OrderDescription   string            `json:"orderDescription"`
+	OrderRequestedAt   string            `json:"orderRequestedAt,omitempty"`
+	OrderExpiredAt     string            `json:"orderExpiredAt,omitempty"`
+	SuccessRedirectURL string            `json:"successRedirectUrl,omitempty"`
+	FailedRedirectURL  string            `json:"failedRedirectUrl,omitempty"`
+	CancelRedirectURL  string            `json:"cancelRedirectUrl,omitempty"`
+	NotifyURL          string            `json:"notifyUrl"`
+	ExtendInfo         string            `json:"extendInfo,omitempty"`
+	MerchantInfo       *MerchantInfo     `json:"merchantInfo,omitempty"`
+	UserInfo           *UserInfo         `json:"userInfo"`
+	GoodsInfo          *GoodsInfo        `json:"goodsInfo,omitempty"`
+	PaymentInfo        *PaymentInfo      `json:"paymentInfo"`
+	BrandInfo          *BrandInfo        `json:"brandInfo,omitempty"`
+	CardInfo           *CardInfo         `json:"cardInfo,omitempty"`
+	PaymentTokenData   *PaymentTokenData `json:"paymentTokenData,omitempty"`
+	RiskData           *RiskData         `json:"riskData,omitempty"`
+	AddressInfo        *AddressInfo      `json:"addressInfo,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	ProductDetail *ProductDetail `json:"productDetail,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	AcqOrderExtSubscriptionInfo interface{} `json:"acqOrderExtSubscriptionInfo,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	ChannelID string `json:"channelId,omitempty"`
+	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
+	InnerCardData interface{}       `json:"innerCardData,omitempty"`
+	X402Info      *X402Info         `json:"x402Info,omitempty"`
+	PromotionInfo *PromotionInfo    `json:"promotionInfo,omitempty"`
+	ExtraParams   types.ExtraParams `json:"extraParams,omitempty"`
 }
 
 // BrandInfo represents cashier brand display information.
@@ -61,12 +67,27 @@ type PaymentTokenData struct {
 	TokenID string `json:"tokenId,omitempty"`
 }
 
-// ProductDetail represents product details attached to an order.
+// X402Info represents x402 stablecoin payment information for an order.
+type X402Info struct {
+	X402Request            bool   `json:"x402Request,omitempty"`
+	PaymentSignatureHeader string `json:"paymentSignatureHeader,omitempty"`
+	X402Response           string `json:"x402Response,omitempty"`
+}
+
+// PromotionInfo represents promotion/coupon information attached to an order.
+type PromotionInfo struct {
+	PromotionCode string `json:"promotionCode,omitempty"`
+	CouponID      string `json:"couponId,omitempty"`
+}
+
+// ProductDetail represents legacy product details attached to an order.
+// Deprecated: Retained for source compatibility; not in the current OpenAPI contract.
 type ProductDetail struct {
 	SubscriptionInfo *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
 }
 
-// AcqOrderExtSubscriptionInfo represents subscription extension information attached to an acquiring order.
+// AcqOrderExtSubscriptionInfo represents legacy subscription extension information.
+// Deprecated: Retained for source compatibility; not in the current OpenAPI contract.
 type AcqOrderExtSubscriptionInfo struct {
 	SubscriptionID    string `json:"subscriptionId,omitempty"`
 	PeriodNo          int    `json:"periodNo,omitempty"`
@@ -74,7 +95,8 @@ type AcqOrderExtSubscriptionInfo struct {
 	SubscriptionEvent string `json:"subscriptionEvent,omitempty"`
 }
 
-// WaffoTokenCardData represents tokenized card data used for direct card payment flows.
+// WaffoTokenCardData represents legacy tokenized card data.
+// Deprecated: Retained for source compatibility; not in the current OpenAPI contract.
 type WaffoTokenCardData struct {
 	CardBinDataList []CardBinData `json:"cardBinDataList,omitempty"`
 	MaskedCardInfo  string        `json:"maskedCardInfo,omitempty"`
@@ -82,7 +104,8 @@ type WaffoTokenCardData struct {
 	CardExpiry      string        `json:"cardExpiry,omitempty"`
 }
 
-// CardBinData represents card BIN metadata returned with tokenized card data.
+// CardBinData represents legacy card BIN metadata.
+// Deprecated: Retained for source compatibility; not in the current OpenAPI contract.
 type CardBinData struct {
 	CardBin                  string   `json:"cardBin,omitempty"`
 	CardScheme               string   `json:"cardScheme,omitempty"`
@@ -179,11 +202,12 @@ type Address struct {
 
 // CreateOrderData represents the response data for order creation.
 type CreateOrderData struct {
-	PaymentRequestID string `json:"paymentRequestId,omitempty"`
-	MerchantOrderID  string `json:"merchantOrderId,omitempty"`
-	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
-	OrderStatus      string `json:"orderStatus,omitempty"`
-	OrderAction      string `json:"orderAction,omitempty"`
+	PaymentRequestID string    `json:"paymentRequestId,omitempty"`
+	MerchantOrderID  string    `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID string    `json:"acquiringOrderId,omitempty"`
+	OrderStatus      string    `json:"orderStatus,omitempty"`
+	OrderAction      string    `json:"orderAction,omitempty"`
+	X402Info         *X402Info `json:"x402Info,omitempty"`
 }
 
 // OrderAction represents the action required for order processing.
@@ -238,6 +262,7 @@ type InquiryOrderData struct {
 	OrderAction       string                         `json:"orderAction,omitempty"`
 	OrderCurrency     string                         `json:"orderCurrency,omitempty"`
 	OrderAmount       string                         `json:"orderAmount,omitempty"`
+	OriginalAmount    string                         `json:"originalAmount,omitempty"`
 	FinalDealAmount   string                         `json:"finalDealAmount,omitempty"`
 	OrderDescription  string                         `json:"orderDescription,omitempty"`
 	MerchantInfo      *MerchantInfo                  `json:"merchantInfo,omitempty"`
@@ -254,6 +279,7 @@ type InquiryOrderData struct {
 	OrderFailedReason string                         `json:"orderFailedReason,omitempty"`
 	ExtendInfo        string                         `json:"extendInfo,omitempty"`
 	UserCurrency      string                         `json:"userCurrency,omitempty"`
+	X402Info          *X402Info                      `json:"x402Info,omitempty"`
 	SubscriptionInfo  *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
 }
 
@@ -314,10 +340,11 @@ type CaptureOrderParams struct {
 
 // CaptureOrderData represents the response data for order capture.
 type CaptureOrderData struct {
-	PaymentRequestID string `json:"paymentRequestId,omitempty"`
-	MerchantOrderID  string `json:"merchantOrderId,omitempty"`
-	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
-	OrderStatus      string `json:"orderStatus,omitempty"`
+	PaymentRequestID  string `json:"paymentRequestId,omitempty"`
+	MerchantOrderID   string `json:"merchantOrderId,omitempty"`
+	AcquiringOrderID  string `json:"acquiringOrderId,omitempty"`
+	OrderStatus       string `json:"orderStatus,omitempty"`
+	CompensateSuccess bool   `json:"compensateSuccess,omitempty"`
 }
 
 // RefundUserInfo represents user information required for refunds with specific payment methods.

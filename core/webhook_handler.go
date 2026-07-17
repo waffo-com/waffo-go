@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/waffo-com/waffo-go/config"
+	"github.com/waffo-com/waffo-go/types/order"
 	"github.com/waffo-com/waffo-go/types/subscription"
 	"github.com/waffo-com/waffo-go/utils"
 )
@@ -140,6 +141,7 @@ type PaymentNotificationResult struct {
 	SubscriptionInfo  *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
 	RefundExpiryAt    string                         `json:"refundExpiryAt,omitempty"`
 	CancelRedirectUrl string                         `json:"cancelRedirectUrl,omitempty"`
+	X402Info          *order.X402Info                `json:"x402Info,omitempty"`
 }
 
 // PaymentNotification represents a payment webhook notification.
