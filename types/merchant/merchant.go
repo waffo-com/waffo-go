@@ -19,8 +19,8 @@ type InquiryMerchantConfigData struct {
 
 // InquiryPayMethodConfigParams represents the parameters for querying payment method config.
 type InquiryPayMethodConfigParams struct {
-	MerchantID    string            `json:"merchantId"`
-	ExtraParams   types.ExtraParams `json:"extraParams,omitempty"`
+	MerchantID  string            `json:"merchantId"`
+	ExtraParams types.ExtraParams `json:"extraParams,omitempty"`
 }
 
 // InquiryPayMethodConfigData represents the response data for payment method config inquiry.
@@ -31,12 +31,17 @@ type InquiryPayMethodConfigData struct {
 
 // PayMethodDetail represents a payment method detail from config inquiry.
 type PayMethodDetail struct {
-	ProductName              string                `json:"productName,omitempty"`
-	PayMethodName            string                `json:"payMethodName,omitempty"`
-	Country                  string                `json:"country,omitempty"`
-	CurrentStatus            string                `json:"currentStatus,omitempty"`
+	ProductName              string                 `json:"productName,omitempty"`
+	PayMethodName            string                 `json:"payMethodName,omitempty"`
+	Country                  string                 `json:"country,omitempty"`
+	CurrentStatus            string                 `json:"currentStatus,omitempty"`
 	FixedMaintenanceRules    []FixedMaintenanceRule `json:"fixedMaintenanceRules,omitempty"`
-	FixedMaintenanceTimezone string                `json:"fixedMaintenanceTimezone,omitempty"`
+	FixedMaintenanceTimezone string                 `json:"fixedMaintenanceTimezone,omitempty"`
+	PayMethodType            string                 `json:"payMethodType,omitempty"`
+	Currency                 string                 `json:"currency,omitempty"`
+	OrderAmountMin           string                 `json:"orderAmountMin,omitempty"`
+	OrderAmountMax           string                 `json:"orderAmountMax,omitempty"`
+	RefundAllowed            *int                   `json:"refundAllowed,omitempty"`
 }
 
 // FixedMaintenanceRule represents a fixed maintenance rule.

@@ -409,6 +409,33 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 }, nil)
 ```
 
+#### 查询可用支付方式示例
+
+响应会返回支付方式类别、支持币种、订单金额上下限和退款策略。实时可用性暂时不可获取时，`CurrentStatus` 可能为空。
+
+```go
+import "github.com/waffo-com/waffo-go/types/merchant"
+
+resp, err := client.PayMethodConfig().Inquiry(ctx, &merchant.InquiryPayMethodConfigParams{}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    for _, detail := range data.PayMethodDetails {
+        refundAllowed := "未提供"
+        if detail.RefundAllowed != nil {
+            refundAllowed = fmt.Sprint(*detail.RefundAllowed)
+        }
+        fmt.Printf("支付方式: %s, 类别: %s, 国家: %s, 币种: %s, 最小金额: %s, 最大金额: %s, 退款策略: %s, 当前状态: %s\n",
+            detail.PayMethodName, detail.PayMethodType, detail.Country, detail.Currency,
+            detail.OrderAmountMin, detail.OrderAmountMax, refundAllowed, detail.CurrentStatus)
+    }
+} else {
+    log.Printf("支付方式配置查询失败: %s - %s", resp.GetCode(), resp.GetMessage())
+}
+```
+
 ## 高级配置
 
 ### 自定义 HTTP 传输层

@@ -714,7 +714,13 @@ func TestReadmeDemo_QueryPayMethodConfig(t *testing.T) {
 		}
 		t.Logf("Available payment methods: %d methods", len(data.PayMethodDetails))
 		for _, pm := range data.PayMethodDetails {
-			t.Logf("  - %s (%s, %s): status=%s", pm.ProductName, pm.PayMethodName, pm.Country, pm.CurrentStatus)
+			refundAllowed := "not provided"
+			if pm.RefundAllowed != nil {
+				refundAllowed = fmt.Sprint(*pm.RefundAllowed)
+			}
+			t.Logf("  - %s (%s, %s): type=%s, currency=%s, min=%s, max=%s, refundAllowed=%s, status=%s",
+				pm.ProductName, pm.PayMethodName, pm.Country, pm.PayMethodType, pm.Currency,
+				pm.OrderAmountMin, pm.OrderAmountMax, refundAllowed, pm.CurrentStatus)
 		}
 	} else {
 		// The API may fail if merchantId injection into top-level field is not supported

@@ -75,10 +75,29 @@ func TestMerchantConfig_InquiryPayMethodConfig(t *testing.T) {
 			testConfig.MerchantID, data)
 	}
 	firstDetail := data.PayMethodDetails[0]
-	if firstDetail.ProductName == "" || firstDetail.PayMethodName == "" ||
-		firstDetail.Country == "" || firstDetail.CurrentStatus == "" {
+	if firstDetail.ProductName == "" || firstDetail.PayMethodName == "" || firstDetail.Country == "" {
 		t.Fatalf("Pay method detail missing required fields: merchantID=%s, detail=%+v",
 			testConfig.MerchantID, firstDetail)
+	}
+
+	var detailWithContractFields *merchant.PayMethodDetail
+	for i := range data.PayMethodDetails {
+		detail := &data.PayMethodDetails[i]
+		if detail.PayMethodType != "" && detail.Currency != "" &&
+			detail.OrderAmountMin != "" && detail.OrderAmountMax != "" &&
+			detail.RefundAllowed != nil {
+			detailWithContractFields = detail
+			break
+		}
+	}
+	if detailWithContractFields == nil {
+		t.Fatalf("No pay method detail contains all new contract fields: merchantID=%s, data=%+v",
+			testConfig.MerchantID, data)
+	}
+	refundAllowed := *detailWithContractFields.RefundAllowed
+	if refundAllowed != 0 && refundAllowed != 1 && refundAllowed != 21 && refundAllowed != 22 {
+		t.Fatalf("Pay method detail has invalid refundAllowed: merchantID=%s, detail=%+v",
+			testConfig.MerchantID, detailWithContractFields)
 	}
 
 	t.Logf("Pay Method Config: merchantID=%s, payMethodDetails=%+v", testConfig.MerchantID, data.PayMethodDetails)

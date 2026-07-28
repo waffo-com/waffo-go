@@ -493,6 +493,33 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 }, nil)
 ```
 
+#### Query Available Payment Methods
+
+The response includes the payment method category, supported currency, order amount limits, and refund policy. `CurrentStatus` can be empty when real-time availability is temporarily unavailable.
+
+```go
+import "github.com/waffo-com/waffo-go/types/merchant"
+
+resp, err := client.PayMethodConfig().Inquiry(ctx, &merchant.InquiryPayMethodConfigParams{}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    for _, detail := range data.PayMethodDetails {
+        refundAllowed := "not provided"
+        if detail.RefundAllowed != nil {
+            refundAllowed = fmt.Sprint(*detail.RefundAllowed)
+        }
+        fmt.Printf("Payment Method: %s, Type: %s, Country: %s, Currency: %s, Min: %s, Max: %s, Refund policy: %s, Current status: %s\n",
+            detail.PayMethodName, detail.PayMethodType, detail.Country, detail.Currency,
+            detail.OrderAmountMin, detail.OrderAmountMax, refundAllowed, detail.CurrentStatus)
+    }
+} else {
+    log.Printf("Pay method config inquiry failed: %s - %s", resp.GetCode(), resp.GetMessage())
+}
+```
+
 ### Wallet Address Inquiry (x402)
 
 Inquire the on-chain stablecoin receiving address for an x402 payment. The response returns the target network, the on-chain token contract, and the Waffo platform wallet address to send funds to. Phase 1 supports `USDC`.
