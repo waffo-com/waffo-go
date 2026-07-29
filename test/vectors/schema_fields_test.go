@@ -20,11 +20,12 @@ type schemaFieldsFile struct {
 }
 
 type schemaEntry struct {
-	OpenapiSchema      string   `json:"openapiSchema"`
-	Fields             []string `json:"fields"`
-	Required           []string `json:"required"`
-	AllowExtraFields   bool     `json:"allowExtraFields"`
-	AllowedExtraFields []string `json:"allowedExtraFields"`
+	OpenapiSchema      string            `json:"openapiSchema"`
+	Fields             []string          `json:"fields"`
+	FieldTypes         map[string]string `json:"fieldTypes"`
+	Required           []string          `json:"required"`
+	AllowExtraFields   bool              `json:"allowExtraFields"`
+	AllowedExtraFields []string          `json:"allowedExtraFields"`
 	SdkTypes           struct {
 		Go string `json:"go"`
 	} `json:"sdkTypes"`
@@ -33,6 +34,41 @@ type schemaEntry struct {
 type jsonField struct {
 	StructField string
 	OmitEmpty   bool
+	Kind        string
+}
+
+// acceptedKinds maps an openapi type kind to the Go kinds allowed for it.
+// The Go SDK carries date-time values as strings.
+var acceptedKinds = map[string][]string{
+	"string":   {"string"},
+	"datetime": {"string"},
+	"integer":  {"integer"},
+	"number":   {"number"},
+	"boolean":  {"boolean"},
+	"array":    {"array"},
+	"object":   {"object"},
+}
+
+// goKind reduces a Go field type to a coarse kind comparable with openapi kinds.
+func goKind(t reflect.Type) string {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.String:
+		return "string"
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "integer"
+	case reflect.Float32, reflect.Float64:
+		return "number"
+	case reflect.Slice, reflect.Array:
+		return "array"
+	default:
+		return "object"
+	}
 }
 
 // goTypeRegistry maps "package.TypeName" → reflect.Type
@@ -132,9 +168,18 @@ func getJSONTags(t reflect.Type) map[string]jsonField {
 				break
 			}
 		}
-		tags[jsonName] = jsonField{StructField: field.Name, OmitEmpty: omitEmpty}
+		tags[jsonName] = jsonField{StructField: field.Name, OmitEmpty: omitEmpty, Kind: goKind(field.Type)}
 	}
 	return tags
+}
+
+func containsKind(kinds []string, kind string) bool {
+	for _, candidate := range kinds {
+		if candidate == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func validatesRequiredShape(schemaName string) bool {
@@ -175,6 +220,24 @@ func TestSchemaFieldsAlignment(t *testing.T) {
 				if _, found := jsonTags[field]; !found {
 					t.Errorf("MISSING field: openapi %q requires json tag %q, but Go type %s does not have it",
 						schema.OpenapiSchema, field, goTypeName)
+				}
+			}
+
+			// Check every openapi field is declared with a compatible Go type.
+			// Field names alone cannot catch a scalar being declared as an object.
+			for _, field := range schema.Fields {
+				info, found := jsonTags[field]
+				if !found {
+					continue
+				}
+				openapiKind := schema.FieldTypes[field]
+				accepted, known := acceptedKinds[openapiKind]
+				if !known {
+					continue
+				}
+				if !containsKind(accepted, info.Kind) {
+					t.Errorf("TYPE MISMATCH: openapi %q field %q is %s, but Go type %s field %s is %s",
+						schema.OpenapiSchema, field, openapiKind, goTypeName, info.StructField, info.Kind)
 				}
 			}
 

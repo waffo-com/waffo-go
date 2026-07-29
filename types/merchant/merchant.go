@@ -10,11 +10,14 @@ type InquiryMerchantConfigParams struct {
 }
 
 // InquiryMerchantConfigData represents the response data for merchant config inquiry.
+//
+// The limit fields are returned as JSON strings keyed by currency, for example
+// `{"PHP":"100000","IDR":"2000000"}`, and are empty when no limit is set.
 type InquiryMerchantConfigData struct {
-	MerchantID          string            `json:"merchantId,omitempty"`
-	TotalDailyLimit     map[string]string `json:"totalDailyLimit,omitempty"`
-	RemainingDailyLimit map[string]string `json:"remainingDailyLimit,omitempty"`
-	TransactionLimit    map[string]string `json:"transactionLimit,omitempty"`
+	MerchantID          string `json:"merchantId,omitempty"`
+	TotalDailyLimit     string `json:"totalDailyLimit,omitempty"`
+	RemainingDailyLimit string `json:"remainingDailyLimit,omitempty"`
+	TransactionLimit    string `json:"transactionLimit,omitempty"`
 }
 
 // InquiryPayMethodConfigParams represents the parameters for querying payment method config.

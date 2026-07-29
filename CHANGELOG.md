@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-29
+
+### Changed
+
+- **JSON-string fields now typed as `string`** (breaking): `order.CreateOrderParams.PaymentTokenData` and `merchant.InquiryMerchantConfigData.TotalDailyLimit` / `RemainingDailyLimit` / `TransactionLimit` are strings in the API contract, but were declared as a struct pointer and maps. Those forms failed to marshal/unmarshal against the API, so no working integration is affected. Parse the JSON string yourself where a structured value is needed.
+- **Removed** the unusable `order.PaymentTokenData` struct, which existed only to type the field above.
+
+### Fixed
+
+- Cross-language schema validation now compares declared field *types* against openapi.json, not just json tag names, so a scalar contract field declared as a struct or map fails the gate.
+
 ## [1.6.0] - 2026-07-28
 
 ### Added

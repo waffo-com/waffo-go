@@ -10,28 +10,28 @@ import (
 
 // CreateOrderParams represents the parameters for creating an order.
 type CreateOrderParams struct {
-	PaymentRequestID   string            `json:"paymentRequestId"`
-	MerchantOrderID    string            `json:"merchantOrderId"`
-	OrderCurrency      string            `json:"orderCurrency"`
-	OrderAmount        string            `json:"orderAmount"`
-	UserCurrency       string            `json:"userCurrency,omitempty"`
-	OrderDescription   string            `json:"orderDescription"`
-	OrderRequestedAt   string            `json:"orderRequestedAt,omitempty"`
-	OrderExpiredAt     string            `json:"orderExpiredAt,omitempty"`
-	SuccessRedirectURL string            `json:"successRedirectUrl,omitempty"`
-	FailedRedirectURL  string            `json:"failedRedirectUrl,omitempty"`
-	CancelRedirectURL  string            `json:"cancelRedirectUrl,omitempty"`
-	NotifyURL          string            `json:"notifyUrl"`
-	ExtendInfo         string            `json:"extendInfo,omitempty"`
-	MerchantInfo       *MerchantInfo     `json:"merchantInfo,omitempty"`
-	UserInfo           *UserInfo         `json:"userInfo"`
-	GoodsInfo          *GoodsInfo        `json:"goodsInfo,omitempty"`
-	PaymentInfo        *PaymentInfo      `json:"paymentInfo"`
-	BrandInfo          *BrandInfo        `json:"brandInfo,omitempty"`
-	CardInfo           *CardInfo         `json:"cardInfo,omitempty"`
-	PaymentTokenData   *PaymentTokenData `json:"paymentTokenData,omitempty"`
-	RiskData           *RiskData         `json:"riskData,omitempty"`
-	AddressInfo        *AddressInfo      `json:"addressInfo,omitempty"`
+	PaymentRequestID   string        `json:"paymentRequestId"`
+	MerchantOrderID    string        `json:"merchantOrderId"`
+	OrderCurrency      string        `json:"orderCurrency"`
+	OrderAmount        string        `json:"orderAmount"`
+	UserCurrency       string        `json:"userCurrency,omitempty"`
+	OrderDescription   string        `json:"orderDescription"`
+	OrderRequestedAt   string        `json:"orderRequestedAt,omitempty"`
+	OrderExpiredAt     string        `json:"orderExpiredAt,omitempty"`
+	SuccessRedirectURL string        `json:"successRedirectUrl,omitempty"`
+	FailedRedirectURL  string        `json:"failedRedirectUrl,omitempty"`
+	CancelRedirectURL  string        `json:"cancelRedirectUrl,omitempty"`
+	NotifyURL          string        `json:"notifyUrl"`
+	ExtendInfo         string        `json:"extendInfo,omitempty"`
+	MerchantInfo       *MerchantInfo `json:"merchantInfo,omitempty"`
+	UserInfo           *UserInfo     `json:"userInfo"`
+	GoodsInfo          *GoodsInfo    `json:"goodsInfo,omitempty"`
+	PaymentInfo        *PaymentInfo  `json:"paymentInfo"`
+	BrandInfo          *BrandInfo    `json:"brandInfo,omitempty"`
+	CardInfo           *CardInfo     `json:"cardInfo,omitempty"`
+	PaymentTokenData   string        `json:"paymentTokenData,omitempty"`
+	RiskData           *RiskData     `json:"riskData,omitempty"`
+	AddressInfo        *AddressInfo  `json:"addressInfo,omitempty"`
 	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
 	ProductDetail *ProductDetail `json:"productDetail,omitempty"`
 	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
@@ -60,11 +60,6 @@ type CardInfo struct {
 	CardCvv         string `json:"cardCvv,omitempty"`
 	CardHolderName  string `json:"cardHolderName,omitempty"`
 	ThreeDsDecision string `json:"threeDsDecision,omitempty"`
-}
-
-// PaymentTokenData represents tokenized payment data.
-type PaymentTokenData struct {
-	TokenID string `json:"tokenId,omitempty"`
 }
 
 // X402Info represents x402 stablecoin payment information for an order.
