@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types/order"
-	"github.com/waffo-com/waffo-go/types/refund"
+	"github.com/waffo-com/waffo-go/v2/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/refund"
 )
 
 // RefundE2ETest tests the complete refund flow:

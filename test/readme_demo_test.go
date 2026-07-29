@@ -17,16 +17,16 @@ import (
 	"testing"
 	"time"
 
-	waffo "github.com/waffo-com/waffo-go"
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/core"
-	"github.com/waffo-com/waffo-go/types"
-	"github.com/waffo-com/waffo-go/types/merchant"
-	"github.com/waffo-com/waffo-go/types/order"
-	"github.com/waffo-com/waffo-go/types/refund"
-	"github.com/waffo-com/waffo-go/types/subscription"
-	"github.com/waffo-com/waffo-go/types/wallet"
-	"github.com/waffo-com/waffo-go/utils"
+	waffo "github.com/waffo-com/waffo-go/v2"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/core"
+	"github.com/waffo-com/waffo-go/v2/types"
+	"github.com/waffo-com/waffo-go/v2/types/merchant"
+	"github.com/waffo-com/waffo-go/v2/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/refund"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/types/wallet"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 // readmeDemoConfig holds sandbox credentials for README demo tests.

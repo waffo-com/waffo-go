@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/errors"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/errors"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 func TestNewPanicsForInvalidPrivateKeyConfig(t *testing.T) {

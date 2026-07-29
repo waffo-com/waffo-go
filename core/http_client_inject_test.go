@@ -4,9 +4,9 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/types/order"
-	"github.com/waffo-com/waffo-go/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
 )
 
 // Test types that mirror real request structures

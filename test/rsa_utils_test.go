@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/waffo-com/waffo-go/errors"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/errors"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 const friendlyPrivateKeyMessage = "Invalid private key format. Please provide an unencrypted PKCS#8 private key."

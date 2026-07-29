@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/core"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/core"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 func createTestWebhookHandler(t *testing.T) (*core.WebhookHandler, *utils.KeyPair) {

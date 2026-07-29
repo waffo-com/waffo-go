@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	waffo "github.com/waffo-com/waffo-go"
-	"github.com/waffo-com/waffo-go/config"
+	waffo "github.com/waffo-com/waffo-go/v2"
+	"github.com/waffo-com/waffo-go/v2/config"
 )
 
 // E2ETestConfig holds the configuration for E2E tests

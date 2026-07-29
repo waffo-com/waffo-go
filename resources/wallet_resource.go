@@ -3,9 +3,9 @@ package resources
 import (
 	"context"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/core"
-	"github.com/waffo-com/waffo-go/types/wallet"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/core"
+	"github.com/waffo-com/waffo-go/v2/types/wallet"
 )
 
 const walletBasePath = "/wallet"

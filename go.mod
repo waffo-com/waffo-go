@@ -1,4 +1,4 @@
-module github.com/waffo-com/waffo-go
+module github.com/waffo-com/waffo-go/v2
 
 go 1.20
 

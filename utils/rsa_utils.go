@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/waffo-com/waffo-go/errors"
+	"github.com/waffo-com/waffo-go/v2/errors"
 )
 
 const invalidPrivateKeyFormatMessage = "Invalid private key format. Please provide an unencrypted PKCS#8 private key."

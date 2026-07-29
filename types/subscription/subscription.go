@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/waffo-com/waffo-go/types"
+	"github.com/waffo-com/waffo-go/v2/types"
 )
 
 // SubscriptionInfo represents subscription information in payment order response and webhook notifications.

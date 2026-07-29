@@ -3,13 +3,13 @@ package config
 import (
 	"os"
 
-	"github.com/waffo-com/waffo-go/errors"
-	"github.com/waffo-com/waffo-go/net"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/errors"
+	"github.com/waffo-com/waffo-go/v2/net"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 // SDK version
-const SDKVersion = "2.0.0"
+const SDKVersion = "2.0.1"
 
 // WaffoConfig contains the configuration for the Waffo SDK.
 type WaffoConfig struct {

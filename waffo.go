@@ -23,10 +23,10 @@
 package waffo
 
 import (
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/core"
-	"github.com/waffo-com/waffo-go/resources"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/core"
+	"github.com/waffo-com/waffo-go/v2/resources"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 // Waffo is the main entry point for the Waffo SDK.

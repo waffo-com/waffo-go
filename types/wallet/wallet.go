@@ -1,7 +1,7 @@
 // Package wallet provides x402 stablecoin wallet types.
 package wallet
 
-import "github.com/waffo-com/waffo-go/types"
+import "github.com/waffo-com/waffo-go/v2/types"
 
 // WalletInquiryParams represents the parameters for an x402 stablecoin
 // receiving-address inquiry (POST /api/v1/wallet/inquiry).

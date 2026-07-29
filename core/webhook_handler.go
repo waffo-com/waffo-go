@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/types/order"
-	"github.com/waffo-com/waffo-go/types/subscription"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 // Webhook event types

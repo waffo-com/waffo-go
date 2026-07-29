@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	waffo "github.com/waffo-com/waffo-go"
-	"github.com/waffo-com/waffo-go/types/order"
+	waffo "github.com/waffo-com/waffo-go/v2"
+	"github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 // PaymentFlowE2ETest tests the complete payment flow:

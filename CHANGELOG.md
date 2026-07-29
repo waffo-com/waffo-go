@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-07-29
+
+### Fixed
+
+- **Go v2 module path**: Public releases with major version 2 now use `github.com/waffo-com/waffo-go/v2`, as required by Go modules. The `v2.0.0` tag used the v1 module path and cannot be resolved through the Go proxy; use `v2.0.1` instead.
+
 ## [2.0.0] - 2026-07-29
 
 ### Changed

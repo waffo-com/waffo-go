@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/core"
-	"github.com/waffo-com/waffo-go/types/order"
+	"github.com/waffo-com/waffo-go/v2/core"
+	"github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 // TestCaptureFlow_ManualCapture tests the complete manual capture flow:

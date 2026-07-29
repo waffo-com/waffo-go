@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 func createPaidDANAOrder(t *testing.T, base *BaseE2ETest, paymentRequestID, merchantOrderID, amount, description, notifyURL string) string {

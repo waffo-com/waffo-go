@@ -2,7 +2,7 @@
 package resources
 
 import (
-	"github.com/waffo-com/waffo-go/core"
+	"github.com/waffo-com/waffo-go/v2/core"
 )
 
 // BaseResource is the base class for all API resources.

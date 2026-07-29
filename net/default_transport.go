@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/waffo-com/waffo-go/errors"
+	"github.com/waffo-com/waffo-go/v2/errors"
 )
 
 // Default timeout values in milliseconds

@@ -4,8 +4,8 @@ package order
 import (
 	"encoding/json"
 
-	"github.com/waffo-com/waffo-go/types"
-	"github.com/waffo-com/waffo-go/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/types"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
 )
 
 // CreateOrderParams represents the parameters for creating an order.

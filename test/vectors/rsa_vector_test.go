@@ -3,7 +3,7 @@ package vectors
 import (
 	"testing"
 
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 // getTestKeyPair generates a fresh key pair for testing

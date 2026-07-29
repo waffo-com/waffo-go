@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
 )
 
 // SubscriptionFlowE2ETest tests the complete subscription flow:

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 // TestRefundWebhook_FullFlow tests the complete refund flow with webhook notification:

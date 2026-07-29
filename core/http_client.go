@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/errors"
-	"github.com/waffo-com/waffo-go/net"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/errors"
+	"github.com/waffo-com/waffo-go/v2/net"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 // HTTP Headers

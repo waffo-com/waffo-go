@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
 )
 
 func requireSubscriptionStatus(t *testing.T, subscriptionRequest, expectedStatus string, attempts int, interval time.Duration) *subscription.InquirySubscriptionData {

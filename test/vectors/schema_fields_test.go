@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/waffo-com/waffo-go/types/merchant"
-	"github.com/waffo-com/waffo-go/types/order"
-	"github.com/waffo-com/waffo-go/types/refund"
-	"github.com/waffo-com/waffo-go/types/subscription"
-	"github.com/waffo-com/waffo-go/types/wallet"
+	"github.com/waffo-com/waffo-go/v2/types/merchant"
+	"github.com/waffo-com/waffo-go/v2/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/refund"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/types/wallet"
 )
 
 // schemaFieldsFile is the test vector generated from openapi.json
@@ -193,6 +193,9 @@ func validatesRequiredShape(schemaName string) bool {
 func TestSchemaFieldsAlignment(t *testing.T) {
 	data, err := os.ReadFile("../../../../sdk-spec/test-vectors/schema-fields.json")
 	if err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("schema-fields.json is available only in the waffo-sdk monorepo")
+		}
 		t.Fatalf("Failed to read schema-fields.json: %v", err)
 	}
 

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/waffo-com/waffo-go/config"
-	"github.com/waffo-com/waffo-go/core"
-	waffonet "github.com/waffo-com/waffo-go/net"
-	"github.com/waffo-com/waffo-go/types/subscription"
-	"github.com/waffo-com/waffo-go/utils"
+	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/core"
+	waffonet "github.com/waffo-com/waffo-go/v2/net"
+	"github.com/waffo-com/waffo-go/v2/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
 type recordingSubscriptionTransport struct {

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/waffo-com/waffo-go/types/merchant"
-	"github.com/waffo-com/waffo-go/types/order"
+	"github.com/waffo-com/waffo-go/v2/types/merchant"
+	"github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 // TestMerchantConfig_InquiryMerchantConfig tests the merchant config inquiry API

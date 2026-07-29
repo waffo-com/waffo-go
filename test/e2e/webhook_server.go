@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/waffo-com/waffo-go/core"
+	"github.com/waffo-com/waffo-go/v2/core"
 )
 
 // ReceivedNotification represents a webhook notification received by the test server.

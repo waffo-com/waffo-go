@@ -1,7 +1,7 @@
 // Package merchant provides merchant-related types.
 package merchant
 
-import "github.com/waffo-com/waffo-go/types"
+import "github.com/waffo-com/waffo-go/v2/types"
 
 // InquiryMerchantConfigParams represents the parameters for querying merchant config.
 type InquiryMerchantConfigParams struct {
