@@ -16,8 +16,7 @@ const encryptedPrivateKeyPEM = "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" +
 	"bm90LWEta2V5\n" +
 	"-----END ENCRYPTED PRIVATE KEY-----"
 
-// getTestKeyPair generates a fresh key pair for testing
-// We use generated keys because test-vectors/rsa-signing.json contains placeholder keys
+// getTestKeyPair generates a fresh key pair for focused utility tests.
 func getTestKeyPair(t *testing.T) *utils.KeyPair {
 	keyPair, err := utils.GenerateKeyPair()
 	if err != nil {

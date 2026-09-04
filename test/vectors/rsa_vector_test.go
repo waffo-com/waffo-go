@@ -1,222 +1,125 @@
 package vectors
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
-// getTestKeyPair generates a fresh key pair for testing
-// We use generated keys because test-vectors/rsa-signing.json contains placeholder keys
-func getTestKeyPair(t *testing.T) *utils.KeyPair {
-	keyPair, err := utils.GenerateKeyPair()
+type rsaVector struct {
+	Module            string                `json:"module"`
+	Algorithm         rsaAlgorithm          `json:"algorithm"`
+	TestKeys          rsaTestKeys           `json:"testKeys"`
+	SigningTests      []rsaSigningTest      `json:"signingTests"`
+	VerificationTests []rsaVerificationTest `json:"verificationTests"`
+}
+
+type rsaTestKeys struct {
+	PrivateKey string `json:"privateKey"`
+	PublicKey  string `json:"publicKey"`
+}
+
+type rsaAlgorithm struct {
+	Name             string `json:"name"`
+	StandardName     string `json:"standardName"`
+	KeySize          int    `json:"keySize"`
+	PrivateKeyFormat string `json:"privateKeyFormat"`
+	PublicKeyFormat  string `json:"publicKeyFormat"`
+}
+
+type rsaSigningTest struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Input struct {
+		Data string `json:"data"`
+	} `json:"input"`
+	Output struct {
+		Signature string `json:"signature"`
+	} `json:"output"`
+}
+
+type rsaVerificationTest struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Input struct {
+		Data                string `json:"data"`
+		Signature           string `json:"signature"`
+		TamperedData        string `json:"tamperedData"`
+		SignatureOfOriginal string `json:"signatureOfOriginal"`
+	} `json:"input"`
+	Expected struct {
+		Valid bool `json:"valid"`
+	} `json:"expected"`
+}
+
+// loadRSAVector reads the registered monorepo vector used by every RSA suite.
+func loadRSAVector(t *testing.T) rsaVector {
+	t.Helper()
+	data, err := os.ReadFile("../../sdk-spec/test-vectors/rsa-signing.json")
 	if err != nil {
-		t.Fatalf("GenerateKeyPair() failed: %v", err)
+		t.Fatalf("read rsa-signing.json: %v", err)
 	}
-	return keyPair
+
+	var vector rsaVector
+	if err := json.Unmarshal(data, &vector); err != nil {
+		t.Fatalf("parse rsa-signing.json: %v", err)
+	}
+	if vector.Module != "rsa-signing" {
+		t.Fatalf("unexpected RSA vector module: %q", vector.Module)
+	}
+	return vector
 }
 
-// RSA-001: Sign basic JSON payload
-func TestRSA001_SignBasicJSON(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"paymentRequestId":"test-123","amount":"100.00"}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
+func TestRSAAlgorithmVector(t *testing.T) {
+	algorithm := loadRSAVector(t).Algorithm
+	if algorithm.Name != "SHA256withRSA" || algorithm.StandardName != "RSASSA-PKCS1-v1_5" {
+		t.Fatalf("unsupported RSA algorithm vector: %+v", algorithm)
 	}
-	if signature == "" {
-		t.Fatal("Sign() returned empty signature")
+	if algorithm.KeySize != 2048 {
+		t.Fatalf("unexpected RSA key size: %d", algorithm.KeySize)
 	}
-	// Cross-verify with the same key pair
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for valid signature")
-	}
-}
-
-// RSA-002: Sign JSON with Unicode characters (UTF-8)
-func TestRSA002_SignUnicodeData(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"description":"测试订单","amount":"100.00"}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for Unicode data signature")
+	if algorithm.PrivateKeyFormat == "" || algorithm.PublicKeyFormat == "" {
+		t.Fatal("RSA vector must declare both key formats")
 	}
 }
 
-// RSA-003: Sign empty JSON object
-func TestRSA003_SignEmptyObject(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for empty object signature")
+func TestRSASigningVectors(t *testing.T) {
+	vector := loadRSAVector(t)
+
+	for _, testCase := range vector.SigningTests {
+		t.Run(testCase.ID+"_"+testCase.Name, func(t *testing.T) {
+			signature, err := utils.Sign(testCase.Input.Data, vector.TestKeys.PrivateKey)
+			if err != nil {
+				t.Fatalf("Sign() failed: %v", err)
+			}
+			if signature != testCase.Output.Signature {
+				t.Fatalf("Sign() did not match canonical signature for %s", testCase.ID)
+			}
+			if !utils.Verify(testCase.Input.Data, signature, vector.TestKeys.PublicKey) {
+				t.Fatal("Verify() rejected the canonical signature")
+			}
+		})
 	}
 }
 
-// RSA-004: Sign complex nested JSON
-func TestRSA004_SignComplexNested(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"order":{"id":"123","items":[{"name":"Product","qty":1}]},"user":{"email":"test@example.com"}}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for complex nested signature")
-	}
-}
+func TestRSAVerificationVectors(t *testing.T) {
+	vector := loadRSAVector(t)
 
-// RSA-005: Sign JSON with special characters
-func TestRSA005_SignSpecialCharacters(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"desc":"Test & Demo <script>alert('xss')</script>","amount":"99.99"}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for special characters signature")
-	}
-}
+	for _, testCase := range vector.VerificationTests {
+		t.Run(testCase.ID+"_"+testCase.Name, func(t *testing.T) {
+			data := testCase.Input.Data
+			signature := testCase.Input.Signature
+			if testCase.Input.TamperedData != "" {
+				data = testCase.Input.TamperedData
+				signature = testCase.Input.SignatureOfOriginal
+			}
+			actual := utils.Verify(data, signature, vector.TestKeys.PublicKey)
 
-// RSA-006: Sign large JSON payload
-func TestRSA006_SignLargePayload(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"items":[{"id":1,"name":"Product 1","price":"10.00"},{"id":2,"name":"Product 2","price":"20.00"},{"id":3,"name":"Product 3","price":"30.00"}],"metadata":{"version":"1.0","timestamp":"2024-01-01T00:00:00Z"}}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for large payload signature")
-	}
-}
-
-// RSA-007: Sign empty string
-func TestRSA007_SignEmptyString(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := ""
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for empty string signature")
-	}
-}
-
-// RSA-V02: Verify invalid signature returns false
-func TestRSAV02_VerifyInvalidSignature(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"test":"data"}`
-	// Invalid but valid Base64 signature
-	invalidSignature := "aW52YWxpZC1zaWduYXR1cmU="
-	if utils.Verify(data, invalidSignature, keyPair.PublicKey) {
-		t.Error("Verify() should return false for invalid signature")
-	}
-}
-
-// RSA-V03: Verify signature fails if data is tampered
-func TestRSAV03_VerifyTamperedData(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	originalData := `{"test":"original"}`
-	tamperedData := `{"test":"tampered"}`
-
-	signature, err := utils.Sign(originalData, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-
-	// Verify original data succeeds
-	if !utils.Verify(originalData, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true for original data")
-	}
-
-	// Verify tampered data fails
-	if utils.Verify(tamperedData, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return false for tampered data")
-	}
-}
-
-// RSA-V04: Verify signature fails with wrong public key
-func TestRSAV04_VerifyWrongPublicKey(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"test":"data"}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() failed: %v", err)
-	}
-
-	// Generate different key pair
-	wrongKeyPair, err := utils.GenerateKeyPair()
-	if err != nil {
-		t.Fatalf("GenerateKeyPair() failed: %v", err)
-	}
-
-	// Verify with wrong public key should fail
-	if utils.Verify(data, signature, wrongKeyPair.PublicKey) {
-		t.Error("Verify() should return false with wrong public key")
-	}
-}
-
-// RSA-E01: Invalid private key throws error
-func TestRSAE01_InvalidPrivateKeyFormat(t *testing.T) {
-	data := `{"test":"data"}`
-	_, err := utils.Sign(data, "NOT_A_VALID_KEY")
-	if err == nil {
-		t.Error("Sign() should return error for invalid private key")
-	}
-}
-
-// RSA-E02: Invalid public key returns false (not error)
-func TestRSAE02_InvalidPublicKeyFormat(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"test":"data"}`
-	signature, _ := utils.Sign(data, keyPair.PrivateKey)
-	// Verify with invalid public key should return false
-	if utils.Verify(data, signature, "NOT_A_VALID_KEY") {
-		t.Error("Verify() should return false for invalid public key")
-	}
-}
-
-// RSA-E04: Corrupted Base64 signature handled gracefully
-func TestRSAE04_CorruptedSignature(t *testing.T) {
-	keyPair := getTestKeyPair(t)
-	data := `{"test":"data"}`
-	// Invalid Base64 signature
-	if utils.Verify(data, "!!!invalid-base64!!!", keyPair.PublicKey) {
-		t.Error("Verify() should return false for corrupted Base64 signature")
-	}
-}
-
-// Test key pair generation matches specification
-func TestKeyPairGeneration(t *testing.T) {
-	keyPair, err := utils.GenerateKeyPair()
-	if err != nil {
-		t.Fatalf("GenerateKeyPair() failed: %v", err)
-	}
-
-	// Verify keys are valid
-	if err := utils.ValidatePrivateKey(keyPair.PrivateKey); err != nil {
-		t.Errorf("Generated private key is invalid: %v", err)
-	}
-	if err := utils.ValidatePublicKey(keyPair.PublicKey); err != nil {
-		t.Errorf("Generated public key is invalid: %v", err)
-	}
-
-	// Test sign/verify with generated keys
-	data := `{"test":"keypair-generation"}`
-	signature, err := utils.Sign(data, keyPair.PrivateKey)
-	if err != nil {
-		t.Fatalf("Sign() with generated key failed: %v", err)
-	}
-	if !utils.Verify(data, signature, keyPair.PublicKey) {
-		t.Error("Verify() should return true with generated key pair")
+			if actual != testCase.Expected.Valid {
+				t.Fatalf("Verify()=%v, expected %v", actual, testCase.Expected.Valid)
+			}
+		})
 	}
 }

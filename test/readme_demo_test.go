@@ -1,8 +1,8 @@
 // Package test provides README demo tests for the Waffo Go SDK.
 //
 // These tests verify that the code examples in README.md are correct and runnable.
-// They require sandbox credentials configured in test/e2e/application-test.yml.
-// If the config file is absent or incomplete, each test will be skipped.
+// Sandbox-backed cases require WAFFO_E2E=1 and credentials configured in
+// test/e2e/application-test.yml. Offline README mirror tests run separately.
 package test
 
 import (
@@ -36,6 +36,14 @@ type readmeDemoConfig struct {
 	WaffoPublicKey string
 	MerchantID     string
 	Environment    string
+}
+
+// requireReadmeDemoE2E prevents local credentials from enabling network tests implicitly.
+func requireReadmeDemoE2E(t *testing.T) {
+	t.Helper()
+	if os.Getenv("WAFFO_E2E") != "1" {
+		t.Skip("README sandbox demo test skipped: set WAFFO_E2E=1 to run external requests")
+	}
 }
 
 // loadReadmeDemoConfig loads credentials from test/e2e/application-test.yml.
@@ -107,6 +115,7 @@ func loadReadmeDemoConfig() *readmeDemoConfig {
 // newReadmeDemoClient creates a Waffo client from config, or calls t.Skip() if not configured.
 func newReadmeDemoClient(t *testing.T) *waffo.Waffo {
 	t.Helper()
+	requireReadmeDemoE2E(t)
 
 	cfg := loadReadmeDemoConfig()
 	if cfg == nil {
@@ -149,6 +158,7 @@ func generateRequestID() string {
 
 // TestReadmeDemo_InitSDK verifies that the SDK can be initialized with a builder config.
 func TestReadmeDemo_InitSDK(t *testing.T) {
+	requireReadmeDemoE2E(t)
 	cfg := loadReadmeDemoConfig()
 	if cfg == nil {
 		t.Skip("README demo test skipped: sandbox credentials not configured in test/e2e/application-test.yml")

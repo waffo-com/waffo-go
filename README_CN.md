@@ -1,8 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README_CN.md @ commit d483eba -->
-
-<!-- Synced with waffo-sdk/README_CN.md -->
+<!-- Synced with waffo-sdk/README_CN.md @ commit 53f0d42 -->
 
 [English](README.md) | **中文**
 
@@ -105,23 +103,37 @@ func main() {
 ```go
 import (
     "context"
-    "github.com/google/uuid"
+    "fmt"
+    "log"
+    "time"
+
     "github.com/waffo-com/waffo-go/types/order"
 )
 
 ctx := context.Background()
 
-// 生成幂等键（最大32字符）
-paymentRequestID := uuid.New().String()[:32]
+// 生成幂等键（最长 32 位）
+paymentRequestID := fmt.Sprintf("%032x", time.Now().UnixNano())
+// 重要：将此 ID 持久化到数据库，用于重试和查询
 
 resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
-    MerchantOrderID:  "ORDER-" + uuid.New().String()[:8],
     PaymentRequestID: paymentRequestID,
-    OrderAmount:      "99.99",
-    OrderCurrency:    "USD",
-    Subject:          "高级订阅",
-    PaymentMethod:    "CARD",
-    // ... 其他参数
+    MerchantOrderID:  fmt.Sprintf("ORDER_%d", time.Now().UnixMilli()),
+    OrderCurrency:    "HKD",
+    OrderAmount:      "100.00",
+    OrderDescription: "测试商品",
+    NotifyURL:        "https://your-site.com/webhook",
+    UserInfo: &order.UserInfo{
+        UserID:       "user_123",
+        UserEmail:    "user@example.com",
+        UserTerminal: "WEB",
+    },
+    PaymentInfo: &order.PaymentInfo{
+        ProductName: "ONE_TIME_PAYMENT",
+    },
+    GoodsInfo: &order.GoodsInfo{
+        GoodsURL: "https://your-site.com/product/001",
+    },
 }, nil)
 
 if err != nil {
@@ -130,9 +142,10 @@ if err != nil {
 
 if resp.IsSuccess() {
     data := resp.GetData()
-    fmt.Printf("支付链接: %s\n", data.PaymentURL)
+    fmt.Printf("跳转地址: %s\n", data.FetchRedirectURL())
+    fmt.Printf("收单订单 ID: %s\n", data.AcquiringOrderID)
 } else {
-    fmt.Printf("错误: %s - %s\n", resp.ResultCode, resp.ResultMsg)
+    fmt.Printf("错误: %s - %s\n", resp.GetCode(), resp.GetMessage())
 }
 ```
 
@@ -145,26 +158,30 @@ import (
 
 handler := client.Webhook().
     OnPayment(func(n *core.PaymentNotification) {
-        fmt.Printf("支付 %s: %s\n", n.PaymentRequestID, n.OrderStatus)
+        if n.Result != nil {
+            fmt.Printf("支付 %s: %s\n", n.Result.AcquiringOrderID, n.Result.OrderStatus)
+        }
     }).
     OnRefund(func(n *core.RefundNotification) {
-        fmt.Printf("退款 %s: %s\n", n.RefundRequestID, n.RefundStatus)
+        if n.Result != nil {
+            fmt.Printf("退款 %s: %s\n", n.Result.RefundRequestID, n.Result.RefundStatus)
+        }
     })
 
 // 在 HTTP 处理器中
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
     body, _ := io.ReadAll(r.Body)
-    signature := r.Header.Get("X-Waffo-Signature")
+    signature := r.Header.Get("X-SIGNATURE")
 
     result := handler.HandleWebhook(string(body), signature)
 
     if result.Success {
         responseBody, responseSig := handler.BuildSuccessResponse()
-        w.Header().Set("X-Waffo-Signature", responseSig)
+        w.Header().Set("X-SIGNATURE", responseSig)
         w.Write([]byte(responseBody))
     } else {
         responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        w.Header().Set("X-Waffo-Signature", responseSig)
+        w.Header().Set("X-SIGNATURE", responseSig)
         w.WriteHeader(http.StatusBadRequest)
         w.Write([]byte(responseBody))
     }
@@ -182,7 +199,8 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 | `WaffoPublicKey` | `string` | ✅ | - | Base64 编码的 X.509 公钥（Waffo 提供） |
 | `MerchantID` | `string` | ❌ | - | 商户 ID，用于自动注入 |
 | `Environment` | `Environment` | ❌ | `Sandbox` | `Sandbox` 或 `Production` |
-| `Timeout` | `time.Duration` | ❌ | `30s` | 请求超时时间 |
+| `ConnectTimeout` | `int64` | ❌ | `10000` | 连接超时（毫秒） |
+| `ReadTimeout` | `int64` | ❌ | `30000` | 读取超时（毫秒） |
 
 ### 环境变量
 
@@ -216,17 +234,17 @@ func setupRoutes(r *gin.Engine, waffoClient *waffo.Waffo) {
 
     r.POST("/webhook/waffo", func(c *gin.Context) {
         body, _ := io.ReadAll(c.Request.Body)
-        signature := c.GetHeader("X-Waffo-Signature")
+        signature := c.GetHeader("X-SIGNATURE")
 
         result := handler.HandleWebhook(string(body), signature)
 
         if result.Success {
             responseBody, responseSig := handler.BuildSuccessResponse()
-            c.Header("X-Waffo-Signature", responseSig)
+            c.Header("X-SIGNATURE", responseSig)
             c.String(http.StatusOK, responseBody)
         } else {
             responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-            c.Header("X-Waffo-Signature", responseSig)
+            c.Header("X-SIGNATURE", responseSig)
             c.String(http.StatusBadRequest, responseBody)
         }
     })
@@ -248,17 +266,17 @@ func setupRoutes(e *echo.Echo, waffoClient *waffo.Waffo) {
 
     e.POST("/webhook/waffo", func(c echo.Context) error {
         body, _ := io.ReadAll(c.Request().Body)
-        signature := c.Request().Header.Get("X-Waffo-Signature")
+        signature := c.Request().Header.Get("X-SIGNATURE")
 
         result := handler.HandleWebhook(string(body), signature)
 
         if result.Success {
             responseBody, responseSig := handler.BuildSuccessResponse()
-            c.Response().Header().Set("X-Waffo-Signature", responseSig)
+            c.Response().Header().Set("X-SIGNATURE", responseSig)
             return c.String(http.StatusOK, responseBody)
         }
         responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        c.Response().Header().Set("X-Waffo-Signature", responseSig)
+        c.Response().Header().Set("X-SIGNATURE", responseSig)
         return c.String(http.StatusBadRequest, responseBody)
     })
 }
@@ -279,17 +297,17 @@ func setupRoutes(app *fiber.App, waffoClient *waffo.Waffo) {
 
     app.Post("/webhook/waffo", func(c *fiber.Ctx) error {
         body := c.Body()
-        signature := c.Get("X-Waffo-Signature")
+        signature := c.Get("X-SIGNATURE")
 
         result := handler.HandleWebhook(string(body), signature)
 
         if result.Success {
             responseBody, responseSig := handler.BuildSuccessResponse()
-            c.Set("X-Waffo-Signature", responseSig)
+            c.Set("X-SIGNATURE", responseSig)
             return c.SendString(responseBody)
         }
         responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        c.Set("X-Waffo-Signature", responseSig)
+        c.Set("X-SIGNATURE", responseSig)
         return c.Status(fiber.StatusBadRequest).SendString(responseBody)
     })
 }
@@ -307,17 +325,21 @@ resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
     PaymentRequestID: "REQ-123",
     OrderAmount:      "99.99",
     OrderCurrency:    "USD",
-    Subject:          "高级套餐",
-    PaymentMethod:    "CARD",
-    ReturnURL:        "https://example.com/return",
+    OrderDescription: "高级套餐",
     NotifyURL:        "https://example.com/webhook",
+    UserInfo: &order.UserInfo{
+        UserID: "USER-123",
+    },
+    PaymentInfo: &order.PaymentInfo{
+        ProductName: "ONE_TIME_PAYMENT",
+    },
 }, nil)
 ```
 
 #### 查询订单
 
 ```go
-resp, err := client.Order().Query(ctx, &order.QueryOrderParams{
+resp, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
     PaymentRequestID: "REQ-123",
 }, nil)
 
@@ -327,10 +349,10 @@ if resp.IsSuccess() {
 }
 ```
 
-#### 关闭订单
+#### 取消订单
 
 ```go
-resp, err := client.Order().Close(ctx, &order.CloseOrderParams{
+resp, err := client.Order().Cancel(ctx, &order.CancelOrderParams{
     PaymentRequestID: "REQ-123",
 }, nil)
 ```
@@ -341,22 +363,29 @@ resp, err := client.Order().Close(ctx, &order.CloseOrderParams{
 
 ```go
 resp, err := client.Subscription().Create(ctx, &subscription.CreateSubscriptionParams{
-    SubscriptionRequest:   "SUB-REQ-123",
-    SubscriptionPlanID:    "PLAN-001",
-    PaymentMethod:         "CARD",
-    OrderAmount:           "9.99",
-    OrderCurrency:         "USD",
-    BillingCycle:          "MONTH",
-    BillingCycleCount:     1,
-    ReturnURL:             "https://example.com/return",
-    NotifyURL:             "https://example.com/webhook",
+    SubscriptionRequest:    "SUB-REQ-123",
+    MerchantSubscriptionID: "MERCHANT-SUB-123",
+    Amount:                 "9.99",
+    Currency:               "USD",
+    ProductInfo: &subscription.ProductInfo{
+        Description:    "高级套餐",
+        PeriodType:     "MONTHLY",
+        PeriodInterval: "1",
+    },
+    UserInfo: &subscription.SubscriptionUserInfo{
+        UserID: "USER-123",
+    },
+    PaymentInfo: &subscription.SubscriptionPaymentInfo{
+        ProductName: "SUBSCRIPTION",
+    },
+    NotifyURL: "https://example.com/webhook",
 }, nil)
 ```
 
 #### 查询订阅
 
 ```go
-resp, err := client.Subscription().Query(ctx, &subscription.QuerySubscriptionParams{
+resp, err := client.Subscription().Inquiry(ctx, &subscription.InquirySubscriptionParams{
     SubscriptionRequest: "SUB-REQ-123",
 }, nil)
 ```
@@ -365,19 +394,94 @@ resp, err := client.Subscription().Query(ctx, &subscription.QuerySubscriptionPar
 
 ```go
 resp, err := client.Subscription().Cancel(ctx, &subscription.CancelSubscriptionParams{
-    SubscriptionRequest: "SUB-REQ-123",
+    SubscriptionID: "SUB-123",
 }, nil)
 ```
 
+<!-- sdk-sync:start:%E8%AE%A2%E9%98%85%E5%8F%98%E6%9B%B4%E7%A4%BA%E4%BE%8B -->
 #### 订阅变更示例
 
 变更现有订阅到新的计划（升级或降级）。
 
+```go
+// 新订阅请求 ID
+subscriptionRequest := fmt.Sprintf("%032x", time.Now().UnixNano())
+originSubscriptionRequest := "original-subscription-request-id"
 
+resp, err := client.Subscription().Change(ctx, &subscription.ChangeSubscriptionParams{
+    SubscriptionRequest:       subscriptionRequest,
+    OriginSubscriptionRequest: originSubscriptionRequest,
+    RemainingAmount:           "50.00", // 原订阅剩余价值
+    Currency:                  "HKD",
+    RequestedAt:               time.Now().UTC().Format(time.RFC3339),
+    NotifyURL:                 "https://your-site.com/webhook/subscription",
+    ProductInfoList: []subscription.SubscriptionChangeProductInfo{
+        {
+            Description:    "年度高级订阅（12个月）",
+            PeriodType:     "MONTHLY",
+            PeriodInterval: "12",
+            Amount:         "999.00",
+        },
+    },
+    UserInfo: &subscription.SubscriptionUserInfo{
+        UserID:    "user_123",
+        UserEmail: "user@example.com",
+    },
+    GoodsInfo: &subscription.SubscriptionGoodsInfo{
+        GoodsID:   "GOODS_PREMIUM",
+        GoodsName: "高级计划",
+    },
+    PaymentInfo: &subscription.SubscriptionPaymentInfo{
+        ProductName: "SUBSCRIPTION",
+    },
+    MerchantInfo: &subscription.SubscriptionMerchantInfo{},
+}, nil)
+
+if err != nil {
+    var unknownErr *errors.WaffoUnknownStatusError
+    if errors.As(err, &unknownErr) {
+        // 状态未知 - 不要假设失败！用户可能已完成支付
+        log.Printf("状态未知，需要查询确认: %v", unknownErr)
+
+        // 正确处理：调用查询 API 确认实际状态
+        inquiryResp, _ := client.Subscription().ChangeInquiry(ctx, &subscription.ChangeInquiryParams{
+            SubscriptionRequest: subscriptionRequest,
+        }, nil)
+        _ = inquiryResp
+        // 或等待 Webhook 回调通知
+    } else {
+        log.Fatal(err)
+    }
+} else if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("变更状态: %s\n", data.SubscriptionChangeStatus)
+    fmt.Printf("新订阅 ID: %s\n", data.SubscriptionID)
+
+    if data.SubscriptionChangeStatus == "AUTHORIZATION_REQUIRED" {
+        // 用户需要授权
+        fmt.Printf("重定向用户到: %s\n", data.FetchRedirectURL())
+    } else if data.SubscriptionChangeStatus == "SUCCESS" {
+        // 变更成功完成
+        fmt.Println("订阅升级成功")
+    }
+}
+```
 
 #### 查询订阅变更状态
 
-
+```go
+resp, err := client.Subscription().ChangeInquiry(ctx, &subscription.ChangeInquiryParams{
+    SubscriptionRequest: "new-subscription-request-id",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("变更状态: %s\n", data.SubscriptionChangeStatus)
+    fmt.Printf("新订阅 ID: %s\n", data.SubscriptionID)
+}
+```
 
 #### 订阅变更状态值
 
@@ -387,11 +491,12 @@ resp, err := client.Subscription().Cancel(ctx, &subscription.CancelSubscriptionP
 | `AUTHORIZATION_REQUIRED` | 需要用户授权（重定向到 webUrl） |
 | `SUCCESS` | 变更成功完成 |
 | `CLOSED` | 变更已关闭（超时或失败） |
+<!-- sdk-sync:end:%E8%AE%A2%E9%98%85%E5%8F%98%E6%9B%B4%E7%A4%BA%E4%BE%8B -->
 
 ### 退款查询
 
 ```go
-resp, err := client.Refund().Query(ctx, &refund.QueryRefundParams{
+resp, err := client.Refund().Inquiry(ctx, &refund.InquiryRefundParams{
     RefundRequestID: "REFUND-123",
 }, nil)
 
@@ -409,13 +514,15 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 }, nil)
 ```
 
+<!-- sdk-sync:start:%E6%9F%A5%E8%AF%A2%E5%8F%AF%E7%94%A8%E6%94%AF%E4%BB%98%E6%96%B9%E5%BC%8F%E7%A4%BA%E4%BE%8B -->
 #### 查询可用支付方式示例
 
-响应会返回支付方式类别、支持币种、订单金额上下限和退款策略。实时可用性暂时不可获取时，`CurrentStatus` 可能为空。
+`payMethodDetails` 响应会返回支付方式类别、支持币种、订单金额上下限和退款策略。实时可用性暂时不可获取时，`currentStatus` 可能为空。
 
 ```go
 import "github.com/waffo-com/waffo-go/types/merchant"
 
+// 配置了 MerchantID 时会自动注入 merchantId
 resp, err := client.PayMethodConfig().Inquiry(ctx, &merchant.InquiryPayMethodConfigParams{}, nil)
 if err != nil {
     log.Fatal(err)
@@ -435,6 +542,7 @@ if resp.IsSuccess() {
     log.Printf("支付方式配置查询失败: %s - %s", resp.GetCode(), resp.GetMessage())
 }
 ```
+<!-- sdk-sync:end:%E6%9F%A5%E8%AF%A2%E5%8F%AF%E7%94%A8%E6%94%AF%E4%BB%98%E6%96%B9%E5%BC%8F%E7%A4%BA%E4%BE%8B -->
 
 ## 高级配置
 
@@ -442,6 +550,8 @@ if resp.IsSuccess() {
 
 ```go
 import (
+    "context"
+
     "github.com/waffo-com/waffo-go/net"
 )
 
@@ -449,14 +559,15 @@ type CustomTransport struct {
     // 你的 HTTP 客户端
 }
 
-func (t *CustomTransport) Send(req *net.HttpRequest) (*net.HttpResponse, error) {
+func (t *CustomTransport) Send(ctx context.Context, req *net.HttpRequest) (*net.HttpResponse, error) {
     // 自定义实现
+    return nil, nil
 }
 
 cfg, _ := config.NewConfigBuilder().
     APIKey("your-api-key").
     // ... 其他选项
-    HttpTransport(&CustomTransport{}).
+    CustomTransport(&CustomTransport{}).
     Build()
 ```
 
@@ -469,6 +580,7 @@ SDK 默认强制使用 TLS 1.2+，无需额外配置。
 transport := net.NewDefaultHttpTransport(timeout)
 ```
 
+<!-- sdk-sync:start:%E9%92%B1%E5%8C%85%E5%9C%B0%E5%9D%80%E6%9F%A5%E8%AF%A2%E7%A4%BA%E4%BE%8B -->
 #### 钱包地址查询示例 (x402)
 
 查询 x402 支付的链上稳定币收款地址。响应返回目标网络、链上代币合约地址，以及 Waffo 平台收款钱包地址。第一阶段支持 `USDC`。
@@ -502,6 +614,7 @@ if resp.IsSuccess() {
 | `network` | CAIP-2 网络 ID（第一阶段：`eip155:8453`，Base 主网） |
 | `asset` | 该网络 + 币种对应的链上代币合约地址 |
 | `payTo` | Waffo 平台收款钱包地址（向此地址付款） |
+<!-- sdk-sync:end:%E9%92%B1%E5%8C%85%E5%9C%B0%E5%9D%80%E6%9F%A5%E8%AF%A2%E7%A4%BA%E4%BE%8B -->
 
 ## Webhook 处理
 
@@ -558,6 +671,7 @@ handler := client.Webhook().
 > - `SUBSCRIPTION_STATUS_NOTIFICATION`: 新订阅状态变更为 `ACTIVE` 时触发
 > - `PAYMENT_NOTIFICATION`: 如果升级需要补差价付款时触发
 
+<!-- sdk-sync:start:Webhook%20%E9%80%9A%E7%9F%A5%E8%BD%BD%E8%8D%B7%E7%A4%BA%E4%BE%8B -->
 ### Webhook 通知载荷示例
 
 以下示例展示各通知类型的实际载荷结构。
@@ -608,6 +722,8 @@ handler := client.Webhook().
   }
 }
 ```
+
+对于 x402 稳定币支付，`PAYMENT_NOTIFICATION.result` 还会包含 `x402Info`，其中包括 `x402Request`、`paymentSignatureHeader` 和 `x402Response`。
 
 #### SUBSCRIPTION_STATUS_NOTIFICATION / SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION
 
@@ -664,7 +780,9 @@ handler := client.Webhook().
   }
 }
 ```
+<!-- sdk-sync:end:Webhook%20%E9%80%9A%E7%9F%A5%E8%BD%BD%E8%8D%B7%E7%A4%BA%E4%BE%8B -->
 
+<!-- sdk-sync:start:%E6%94%AF%E4%BB%98%E6%96%B9%E5%BC%8F%E7%B1%BB%E5%9E%8B -->
 ## 支付方式类型
 
 ### payMethodType 参考
@@ -678,7 +796,34 @@ handler := client.Webhook().
 | `APPLEPAY` | Apple Pay | APPLEPAY |
 | `GOOGLEPAY` | Google Pay | GOOGLEPAY |
 
+### 使用示例
+
+只指定类型，让用户在收银台页面选择：
+
+```json
+{"paymentInfo": {"payMethodType": "CREDITCARD"}}
+```
+
+指定具体支付方式：
+
+```json
+{"paymentInfo": {"payMethodType": "CREDITCARD", "payMethodName": "CC_VISA"}}
+```
+
+组合多种类型：
+
+```json
+{"paymentInfo": {"payMethodType": "CREDITCARD,DEBITCARD"}}
+```
+
+指定电子钱包渠道：
+
+```json
+{"paymentInfo": {"payMethodType": "EWALLET", "payMethodName": "GCASH"}}
+```
+
 > **注意**: 可用的 `ProductName`、`PayMethodType`、`PayMethodName` 值，商户可登录 [Waffo Portal](https://dashboard.waffo.com) 查看已签约的支付方式（首页 → 服务 → 收单）。
+<!-- sdk-sync:end:%E6%94%AF%E4%BB%98%E6%96%B9%E5%BC%8F%E7%B1%BB%E5%9E%8B -->
 
 ## 配置 DNS 缓存 TTL
 
@@ -717,17 +862,44 @@ java.security.Security.setProperty("networkaddress.cache.ttl", "60");
 
 - **CDN / API 网关**：如果您通过 Cloudflare、AWS API Gateway 或类似服务路由流量，请确保其 DNS TTL 设置符合您的需求。
 
+<!-- sdk-sync:start:%E5%A4%84%E7%90%86%E6%96%B0%E5%A2%9E%20API%20%E5%AD%97%E6%AE%B5%20(ExtraParams) -->
 ## 处理新增 API 字段 (ExtraParams)
 
 当 Waffo API 新增字段但 SDK 尚未更新时，可以使用 ExtraParams 功能访问这些字段，无需等待 SDK 更新。
 
 ### 从响应中读取未知字段
 
+```go
+// Go 中使用响应结构体上的 ExtraParams 字段（map[string]interface{}）
+// 注意：结构体中未定义的 JSON 字段都会收集到 ExtraParams
 
+// 从响应中获取额外字段
+resp, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
+    PaymentRequestID: "REQ001",
+}, nil)
+if resp.IsSuccess() {
+    data := resp.GetData()
+    // 通过 ExtraParams map 访问额外字段
+    if newField, ok := data.ExtraParams["newField"]; ok {
+        fmt.Printf("新字段: %v\n", newField)
+    }
+}
+```
 
 ### 在请求中发送额外字段
 
-
+```go
+// Go 中使用 ExtraParams 字段（types.ExtraParams = map[string]interface{}）
+resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
+    PaymentRequestID: "REQ001",
+    MerchantOrderID:  "ORDER001",
+    // ... 其他必填字段
+    ExtraParams: types.ExtraParams{
+        "newField": "value",                      // 额外字段
+        "nested":   map[string]interface{}{"key": 123}, // 嵌套对象
+    },
+}, nil)
+```
 
 ### 重要提示
 
@@ -744,6 +916,7 @@ java.security.Security.setProperty("networkaddress.cache.ttl", "60");
 > - 官方 getter 提供类型安全
 > - 更好的 IDE 自动补全和文档支持
 > - 减少字段名拼写错误的风险
+<!-- sdk-sync:end:%E5%A4%84%E7%90%86%E6%96%B0%E5%A2%9E%20API%20%E5%AD%97%E6%AE%B5%20(ExtraParams) -->
 
 ## 错误处理
 
@@ -895,6 +1068,73 @@ if !resp.IsSuccess() {
 | `E0001` | 未知状态（需查询或等待回调） | 500 |
 
 > **注意**: 收到 `E0001` 错误码时，表示交易状态未知。**不要直接关闭订单**，应调用查询 API 确认实际状态，或等待 Webhook 回调通知。
+
+<!-- sdk-sync:start:%E7%8E%AF%E5%A2%83%20URL -->
+### 环境 URL
+
+| 环境 | Base URL | 说明 |
+|------|----------|------|
+| `SANDBOX` | `https://api-sandbox.waffo.com` | 测试环境 |
+| `PRODUCTION` | `https://api.waffo.com` | 生产环境 |
+<!-- sdk-sync:end:%E7%8E%AF%E5%A2%83%20URL -->
+
+<!-- sdk-sync:start:%E8%B6%85%E6%97%B6%E9%85%8D%E7%BD%AE%E5%BB%BA%E8%AE%AE -->
+### 超时配置建议
+
+| 操作类型 | 连接超时 | 读取超时 | 说明 |
+|----------|----------|----------|------|
+| 创建订单 | 5s | 30s | 推荐值 |
+| 创建订阅 | 5s | 30s | 推荐值 |
+| 退款操作 | 5s | 30s | 推荐值 |
+| 查询操作 | 5s | 15s | 可以更短 |
+<!-- sdk-sync:end:%E8%B6%85%E6%97%B6%E9%85%8D%E7%BD%AE%E5%BB%BA%E8%AE%AE -->
+
+<!-- sdk-sync:start:%E8%BF%9E%E6%8E%A5%E6%B1%A0%E5%BB%BA%E8%AE%AE -->
+### 连接池建议
+
+| 场景 | 最大连接数 | 单路由最大连接数 | 说明 |
+|------|-----------|------------------|------|
+| 低流量（< 10 QPS） | 20 | 10 | 默认配置即可 |
+| 中等流量（10-100 QPS） | 50 | 20 | 可考虑 OkHttp |
+| 高流量（> 100 QPS） | 100-200 | 50 | 可考虑 Apache HttpClient |
+<!-- sdk-sync:end:%E8%BF%9E%E6%8E%A5%E6%B1%A0%E5%BB%BA%E8%AE%AE -->
+
+<!-- sdk-sync:start:%E6%9B%B4%E6%96%B0%E8%AE%A2%E9%98%85 -->
+#### 更新订阅
+
+在不重新授权的情况下更新生效订阅的计费金额。提供 `subscriptionRequest` 或 `subscriptionId`。需要立即收取增购补差时传入 `topupInfo`，更新后的计费金额从下一个计费周期生效。
+
+```go
+resp, err := client.Subscription().Update(ctx, &subscription.UpdateSubscriptionParams{
+    SubscriptionID: "subscription_id",
+    Amount:         "129.00", // 下一计费周期起的新每期金额
+    ProductInfo: &subscription.UpdateProductInfo{
+        TrialPeriodAmount: "0",
+        ScheduledAmounts: []subscription.ScheduledAmount{
+            {Period: "2", Amount: "99.00"}, // 按期覆盖金额
+            {Period: "3", Amount: "129.00"},
+        },
+    },
+    TopupInfo: &subscription.SubscriptionUpdateTopupInfo{
+        TopupRequest:   "mimo-topup-001", // 本次补差的幂等键
+        TopupAmount:    "30.00",           // 立即收取的补差金额
+        Description:    "增购 3 个席位",
+        OrderExpiredAt: "2030-01-01T00:00:00Z",
+    },
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("原金额: %s\n", data.PreviousAmount)
+    fmt.Printf("新金额: %s\n", data.NewAmount)
+    fmt.Printf("下一生效期数: %s\n", data.NextEffectivePeriod)
+    fmt.Printf("补差订单: %s\n", data.TopupInfo.AcquiringOrderID)
+    fmt.Printf("补差状态: %s\n", data.TopupInfo.TopupStatus)
+}
+```
+<!-- sdk-sync:end:%E6%9B%B4%E6%96%B0%E8%AE%A2%E9%98%85 -->
 
 ## 支持
 

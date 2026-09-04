@@ -1,8 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README.md @ commit d483eba -->
-
-<!-- Synced with waffo-sdk/README.md -->
+<!-- Synced with waffo-sdk/README.md @ commit 53f0d42 -->
 
 **English** | [中文](README_CN.md)
 
@@ -107,23 +105,37 @@ func main() {
 ```go
 import (
     "context"
-    "github.com/google/uuid"
+    "fmt"
+    "log"
+    "time"
+
     "github.com/waffo-com/waffo-go/types/order"
 )
 
 ctx := context.Background()
 
 // Generate idempotency key (max 32 chars)
-paymentRequestID := uuid.New().String()[:32]
+paymentRequestID := fmt.Sprintf("%032x", time.Now().UnixNano())
+// Important: Persist this ID to database for retry and query
 
 resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
-    MerchantOrderID:  "ORDER-" + uuid.New().String()[:8],
     PaymentRequestID: paymentRequestID,
-    OrderAmount:      "99.99",
-    OrderCurrency:    "USD",
-    Subject:          "Premium Subscription",
-    PaymentMethod:    "CARD",
-    // ... other parameters
+    MerchantOrderID:  fmt.Sprintf("ORDER_%d", time.Now().UnixMilli()),
+    OrderCurrency:    "HKD",
+    OrderAmount:      "100.00",
+    OrderDescription: "Test Product",
+    NotifyURL:        "https://your-site.com/webhook",
+    UserInfo: &order.UserInfo{
+        UserID:       "user_123",
+        UserEmail:    "user@example.com",
+        UserTerminal: "WEB",
+    },
+    PaymentInfo: &order.PaymentInfo{
+        ProductName: "ONE_TIME_PAYMENT",
+    },
+    GoodsInfo: &order.GoodsInfo{
+        GoodsURL: "https://your-site.com/product/001",
+    },
 }, nil)
 
 if err != nil {
@@ -132,9 +144,10 @@ if err != nil {
 
 if resp.IsSuccess() {
     data := resp.GetData()
-    fmt.Printf("Payment URL: %s\n", data.PaymentURL)
+    fmt.Printf("Redirect URL: %s\n", data.FetchRedirectURL())
+    fmt.Printf("Acquiring Order ID: %s\n", data.AcquiringOrderID)
 } else {
-    fmt.Printf("Error: %s - %s\n", resp.ResultCode, resp.ResultMsg)
+    fmt.Printf("Error: %s - %s\n", resp.GetCode(), resp.GetMessage())
 }
 ```
 
@@ -147,26 +160,30 @@ import (
 
 handler := client.Webhook().
     OnPayment(func(n *core.PaymentNotification) {
-        fmt.Printf("Payment %s: %s\n", n.PaymentRequestID, n.OrderStatus)
+        if n.Result != nil {
+            fmt.Printf("Payment %s: %s\n", n.Result.AcquiringOrderID, n.Result.OrderStatus)
+        }
     }).
     OnRefund(func(n *core.RefundNotification) {
-        fmt.Printf("Refund %s: %s\n", n.RefundRequestID, n.RefundStatus)
+        if n.Result != nil {
+            fmt.Printf("Refund %s: %s\n", n.Result.RefundRequestID, n.Result.RefundStatus)
+        }
     })
 
 // In your HTTP handler
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
     body, _ := io.ReadAll(r.Body)
-    signature := r.Header.Get("X-Waffo-Signature")
+    signature := r.Header.Get("X-SIGNATURE")
 
     result := handler.HandleWebhook(string(body), signature)
 
     if result.Success {
         responseBody, responseSig := handler.BuildSuccessResponse()
-        w.Header().Set("X-Waffo-Signature", responseSig)
+        w.Header().Set("X-SIGNATURE", responseSig)
         w.Write([]byte(responseBody))
     } else {
         responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        w.Header().Set("X-Waffo-Signature", responseSig)
+        w.Header().Set("X-SIGNATURE", responseSig)
         w.WriteHeader(http.StatusBadRequest)
         w.Write([]byte(responseBody))
     }
@@ -184,7 +201,8 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 | `WaffoPublicKey` | `string` | ✅ | - | Base64-encoded X.509 public key from Waffo |
 | `MerchantID` | `string` | ❌ | - | Merchant ID for auto-injection |
 | `Environment` | `Environment` | ❌ | `Sandbox` | `Sandbox` or `Production` |
-| `Timeout` | `time.Duration` | ❌ | `30s` | Request timeout |
+| `ConnectTimeout` | `int64` | ❌ | `10000` | Connection timeout in milliseconds |
+| `ReadTimeout` | `int64` | ❌ | `30000` | Read timeout in milliseconds |
 
 ### Environment Variables
 
@@ -218,17 +236,17 @@ func setupRoutes(r *gin.Engine, waffoClient *waffo.Waffo) {
 
     r.POST("/webhook/waffo", func(c *gin.Context) {
         body, _ := io.ReadAll(c.Request.Body)
-        signature := c.GetHeader("X-Waffo-Signature")
+        signature := c.GetHeader("X-SIGNATURE")
 
         result := handler.HandleWebhook(string(body), signature)
 
         if result.Success {
             responseBody, responseSig := handler.BuildSuccessResponse()
-            c.Header("X-Waffo-Signature", responseSig)
+            c.Header("X-SIGNATURE", responseSig)
             c.String(http.StatusOK, responseBody)
         } else {
             responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-            c.Header("X-Waffo-Signature", responseSig)
+            c.Header("X-SIGNATURE", responseSig)
             c.String(http.StatusBadRequest, responseBody)
         }
     })
@@ -250,17 +268,17 @@ func setupRoutes(e *echo.Echo, waffoClient *waffo.Waffo) {
 
     e.POST("/webhook/waffo", func(c echo.Context) error {
         body, _ := io.ReadAll(c.Request().Body)
-        signature := c.Request().Header.Get("X-Waffo-Signature")
+        signature := c.Request().Header.Get("X-SIGNATURE")
 
         result := handler.HandleWebhook(string(body), signature)
 
         if result.Success {
             responseBody, responseSig := handler.BuildSuccessResponse()
-            c.Response().Header().Set("X-Waffo-Signature", responseSig)
+            c.Response().Header().Set("X-SIGNATURE", responseSig)
             return c.String(http.StatusOK, responseBody)
         }
         responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        c.Response().Header().Set("X-Waffo-Signature", responseSig)
+        c.Response().Header().Set("X-SIGNATURE", responseSig)
         return c.String(http.StatusBadRequest, responseBody)
     })
 }
@@ -281,17 +299,17 @@ func setupRoutes(app *fiber.App, waffoClient *waffo.Waffo) {
 
     app.Post("/webhook/waffo", func(c *fiber.Ctx) error {
         body := c.Body()
-        signature := c.Get("X-Waffo-Signature")
+        signature := c.Get("X-SIGNATURE")
 
         result := handler.HandleWebhook(string(body), signature)
 
         if result.Success {
             responseBody, responseSig := handler.BuildSuccessResponse()
-            c.Set("X-Waffo-Signature", responseSig)
+            c.Set("X-SIGNATURE", responseSig)
             return c.SendString(responseBody)
         }
         responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        c.Set("X-Waffo-Signature", responseSig)
+        c.Set("X-SIGNATURE", responseSig)
         return c.Status(fiber.StatusBadRequest).SendString(responseBody)
     })
 }
@@ -309,17 +327,21 @@ resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
     PaymentRequestID: "REQ-123",
     OrderAmount:      "99.99",
     OrderCurrency:    "USD",
-    Subject:          "Premium Plan",
-    PaymentMethod:    "CARD",
-    ReturnURL:        "https://example.com/return",
+    OrderDescription: "Premium Plan",
     NotifyURL:        "https://example.com/webhook",
+    UserInfo: &order.UserInfo{
+        UserID: "USER-123",
+    },
+    PaymentInfo: &order.PaymentInfo{
+        ProductName: "ONE_TIME_PAYMENT",
+    },
 }, nil)
 ```
 
 #### Query Order
 
 ```go
-resp, err := client.Order().Query(ctx, &order.QueryOrderParams{
+resp, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
     PaymentRequestID: "REQ-123",
 }, nil)
 
@@ -329,10 +351,10 @@ if resp.IsSuccess() {
 }
 ```
 
-#### Close Order
+#### Cancel Order
 
 ```go
-resp, err := client.Order().Close(ctx, &order.CloseOrderParams{
+resp, err := client.Order().Cancel(ctx, &order.CancelOrderParams{
     PaymentRequestID: "REQ-123",
 }, nil)
 ```
@@ -343,22 +365,29 @@ resp, err := client.Order().Close(ctx, &order.CloseOrderParams{
 
 ```go
 resp, err := client.Subscription().Create(ctx, &subscription.CreateSubscriptionParams{
-    SubscriptionRequest:   "SUB-REQ-123",
-    SubscriptionPlanID:    "PLAN-001",
-    PaymentMethod:         "CARD",
-    OrderAmount:           "9.99",
-    OrderCurrency:         "USD",
-    BillingCycle:          "MONTH",
-    BillingCycleCount:     1,
-    ReturnURL:             "https://example.com/return",
-    NotifyURL:             "https://example.com/webhook",
+    SubscriptionRequest:    "SUB-REQ-123",
+    MerchantSubscriptionID: "MERCHANT-SUB-123",
+    Amount:                 "9.99",
+    Currency:               "USD",
+    ProductInfo: &subscription.ProductInfo{
+        Description:    "Premium Plan",
+        PeriodType:     "MONTHLY",
+        PeriodInterval: "1",
+    },
+    UserInfo: &subscription.SubscriptionUserInfo{
+        UserID: "USER-123",
+    },
+    PaymentInfo: &subscription.SubscriptionPaymentInfo{
+        ProductName: "SUBSCRIPTION",
+    },
+    NotifyURL: "https://example.com/webhook",
 }, nil)
 ```
 
 #### Query Subscription
 
 ```go
-resp, err := client.Subscription().Query(ctx, &subscription.QuerySubscriptionParams{
+resp, err := client.Subscription().Inquiry(ctx, &subscription.InquirySubscriptionParams{
     SubscriptionRequest: "SUB-REQ-123",
 }, nil)
 ```
@@ -367,10 +396,11 @@ resp, err := client.Subscription().Query(ctx, &subscription.QuerySubscriptionPar
 
 ```go
 resp, err := client.Subscription().Cancel(ctx, &subscription.CancelSubscriptionParams{
-    SubscriptionRequest: "SUB-REQ-123",
+    SubscriptionID: "SUB-123",
 }, nil)
 ```
 
+<!-- sdk-sync:start:Subscription%20Change%20(Upgrade%2FDowngrade) -->
 ### Subscription Change (Upgrade/Downgrade)
 
 Change an existing subscription to a new plan (upgrade or downgrade).
@@ -379,7 +409,7 @@ Change an existing subscription to a new plan (upgrade or downgrade).
 
 ```go
 // New subscription request ID for the change
-subscriptionRequest := fmt.Sprintf("%x", time.Now().UnixNano())[:32]
+subscriptionRequest := fmt.Sprintf("%032x", time.Now().UnixNano())
 originSubscriptionRequest := "original-subscription-request-id"
 
 resp, err := client.Subscription().Change(ctx, &subscription.ChangeSubscriptionParams{
@@ -471,11 +501,12 @@ if resp.IsSuccess() {
     fmt.Printf("New Subscription ID: %s\n", data.SubscriptionID)
 }
 ```
+<!-- sdk-sync:end:Subscription%20Change%20(Upgrade%2FDowngrade) -->
 
 ### Refund Query
 
 ```go
-resp, err := client.Refund().Query(ctx, &refund.QueryRefundParams{
+resp, err := client.Refund().Inquiry(ctx, &refund.InquiryRefundParams{
     RefundRequestID: "REFUND-123",
 }, nil)
 
@@ -493,13 +524,15 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 }, nil)
 ```
 
+<!-- sdk-sync:start:Query%20Available%20Payment%20Methods -->
 #### Query Available Payment Methods
 
-The response includes the payment method category, supported currency, order amount limits, and refund policy. `CurrentStatus` can be empty when real-time availability is temporarily unavailable.
+The `payMethodDetails` response includes the payment method category, supported currency, order amount limits, and refund policy. `currentStatus` can be absent when real-time availability is temporarily unavailable.
 
 ```go
 import "github.com/waffo-com/waffo-go/types/merchant"
 
+// merchantId is auto-injected from config if MerchantID is set
 resp, err := client.PayMethodConfig().Inquiry(ctx, &merchant.InquiryPayMethodConfigParams{}, nil)
 if err != nil {
     log.Fatal(err)
@@ -519,6 +552,7 @@ if resp.IsSuccess() {
     log.Printf("Pay method config inquiry failed: %s - %s", resp.GetCode(), resp.GetMessage())
 }
 ```
+<!-- sdk-sync:end:Query%20Available%20Payment%20Methods -->
 
 ### Wallet Address Inquiry (x402)
 
@@ -611,6 +645,7 @@ handler := client.Webhook().
 > - `SUBSCRIPTION_STATUS_NOTIFICATION`: When new subscription status changes to `ACTIVE`
 > - `PAYMENT_NOTIFICATION`: If upgrade requires additional payment (price difference)
 
+<!-- sdk-sync:start:Webhook%20Notification%20Payload%20Examples -->
 ### Webhook Notification Payload Examples
 
 The following examples show the actual payload structure for each notification type.
@@ -661,6 +696,8 @@ The following examples show the actual payload structure for each notification t
   }
 }
 ```
+
+For x402 stablecoin payments, `PAYMENT_NOTIFICATION.result` also includes `x402Info` with `x402Request`, `paymentSignatureHeader`, and `x402Response`.
 
 #### SUBSCRIPTION_STATUS_NOTIFICATION / SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION
 
@@ -717,7 +754,9 @@ These two notification types share the same payload structure:
   }
 }
 ```
+<!-- sdk-sync:end:Webhook%20Notification%20Payload%20Examples -->
 
+<!-- sdk-sync:start:Payment%20Method%20Types -->
 ## Payment Method Types
 
 ### payMethodType Reference
@@ -733,31 +772,32 @@ These two notification types share the same payload structure:
 
 ### Usage Examples
 
-```typescript
-// Specify type only, let user choose on checkout page
-paymentInfo: {
-  payMethodType: 'CREDITCARD',
-}
+Specify a type and let the user choose on the checkout page:
 
-// Specify exact payment method
-paymentInfo: {
-  payMethodType: 'CREDITCARD',
-  payMethodName: 'CC_VISA',
-}
+```json
+{"paymentInfo": {"payMethodType": "CREDITCARD"}}
+```
 
-// Combine multiple types
-paymentInfo: {
-  payMethodType: 'CREDITCARD,DEBITCARD',
-}
+Specify an exact payment method:
 
-// E-wallet with specific channel
-paymentInfo: {
-  payMethodType: 'EWALLET',
-  payMethodName: 'GCASH',
-}
+```json
+{"paymentInfo": {"payMethodType": "CREDITCARD", "payMethodName": "CC_VISA"}}
+```
+
+Combine multiple types:
+
+```json
+{"paymentInfo": {"payMethodType": "CREDITCARD,DEBITCARD"}}
+```
+
+Select an e-wallet channel:
+
+```json
+{"paymentInfo": {"payMethodType": "EWALLET", "payMethodName": "GCASH"}}
 ```
 
 > **Note**: For available `ProductName`, `PayMethodType`, `PayMethodName` values, merchants can log in to [Waffo Portal](https://dashboard.waffo.com) to view contracted payment methods (Home → Service → Pay-in).
+<!-- sdk-sync:end:Payment%20Method%20Types -->
 
 ## Advanced Configuration
 
@@ -765,6 +805,8 @@ paymentInfo: {
 
 ```go
 import (
+    "context"
+
     "github.com/waffo-com/waffo-go/net"
 )
 
@@ -772,14 +814,15 @@ type CustomTransport struct {
     // Your HTTP client
 }
 
-func (t *CustomTransport) Send(req *net.HttpRequest) (*net.HttpResponse, error) {
+func (t *CustomTransport) Send(ctx context.Context, req *net.HttpRequest) (*net.HttpResponse, error) {
     // Custom implementation
+    return nil, nil
 }
 
 cfg, _ := config.NewConfigBuilder().
     APIKey("your-api-key").
     // ... other options
-    HttpTransport(&CustomTransport{}).
+    CustomTransport(&CustomTransport{}).
     Build()
 ```
 
@@ -959,6 +1002,189 @@ Use the following test card in sandbox environment:
 | Expiry | 09/28 |
 | CVV | 123 |
 | Holder | Tom Clause |
+
+<!-- sdk-sync:start:Error%20Code%20Classification -->
+### Error Code Classification
+
+Error codes are classified by first letter:
+
+| Prefix | Category | Description |
+|--------|----------|-------------|
+| **S** | SDK Internal Error | SDK client internal error such as network timeout, signing failure, etc. |
+| **A** | Merchant Related | Parameter, signature, permission, contract issues on merchant side |
+| **B** | User Related | User status, balance, authorization issues |
+| **C** | System Related | Waffo system or payment channel issues |
+| **D** | Risk Related | Risk control rejection |
+| **E** | Unknown Status | Server returned unknown status |
+<!-- sdk-sync:end:Error%20Code%20Classification -->
+
+<!-- sdk-sync:start:Complete%20Error%20Code%20Table -->
+### Complete Error Code Table
+
+#### SDK Internal Errors (Sxxxx)
+
+| Code | Description | Exception Type | Handling Suggestion |
+|------|-------------|----------------|---------------------|
+| `S0001` | Network Error | `WaffoUnknownStatusError` | **Status unknown**, need to query order to confirm |
+| `S0002` | Invalid Public Key | `WaffoError` | Check if public key is valid Base64 encoded X509 format |
+| `S0003` | RSA Signing Failed | `WaffoError` | Check if private key format is correct |
+| `S0004` | Response Signature Verification Failed | `ApiResponse.error()` | Check Waffo public key config, contact Waffo |
+| `S0005` | Request Serialization Failed | `ApiResponse.error()` | Check request parameter format |
+| `S0006` | SDK Unknown Error | `ApiResponse.error()` | Check logs, contact technical support |
+| `S0007` | Invalid Private Key | `WaffoError` | Check if private key is valid Base64 encoded PKCS8 format |
+
+> **Important**: `S0001` and `E0001` (returned by server) indicate **unknown status**. Do not close order directly! Should call query API or wait for webhook to confirm actual status.
+
+#### Merchant Related Errors (Axxxxx)
+
+| Code | Description | HTTP Status |
+|------|-------------|-------------|
+| `0` | Success | 200 |
+| `A0001` | Invalid API Key | 401 |
+| `A0002` | Invalid Signature | 401 |
+| `A0003` | Parameter Validation Failed | 400 |
+| `A0004` | Insufficient Permission | 401 |
+| `A0005` | Merchant Limit Exceeded | 400 |
+| `A0006` | Merchant Status Abnormal | 400 |
+| `A0007` | Unsupported Transaction Currency | 400 |
+| `A0008` | Transaction Amount Exceeded | 400 |
+| `A0009` | Order Not Found | 400 |
+| `A0010` | Merchant Contract Does Not Allow This Operation | 400 |
+| `A0011` | Idempotent Parameter Mismatch | 400 |
+| `A0012` | Merchant Account Insufficient Balance | 400 |
+| `A0013` | Order Already Paid, Cannot Cancel | 400 |
+| `A0014` | Refund Rules Do Not Allow Refund | 400 |
+| `A0015` | Payment Channel Does Not Support Cancel | 400 |
+| `A0016` | Payment Channel Rejected Cancel | 400 |
+| `A0017` | Payment Channel Does Not Support Refund | 400 |
+| `A0018` | Payment Method Does Not Match Merchant Contract | 400 |
+| `A0019` | Cannot Refund Due to Chargeback Dispute | 400 |
+| `A0020` | Payment Amount Exceeds Single Transaction Limit | 400 |
+| `A0021` | Cumulative Payment Amount Exceeds Daily Limit | 400 |
+| `A0022` | Multiple Products Exist, Need to Specify Product Name | 400 |
+| `A0023` | Token Expired, Cannot Create Order | 400 |
+| `A0024` | Exchange Rate Expired, Cannot Process Order | 400 |
+| `A0026` | Unsupported Checkout Language | 400 |
+| `A0027` | Refund Count Reached Limit (50 times) | 400 |
+| `A0029` | Invalid Card Data Provided by Merchant | 400 |
+| `A0030` | Card BIN Not Found | 400 |
+| `A0031` | Unsupported Card Scheme or Card Type | 400 |
+| `A0032` | Invalid Payment Token Data | 400 |
+| `A0033` | Multiple Payment Methods with Same Name, Need to Specify Country | 400 |
+| `A0034` | Order Expiry Time Provided by Merchant Has Passed | 400 |
+| `A0035` | Current Order Does Not Support Capture Operation | 400 |
+| `A0036` | Current Order Status Does Not Allow Capture Operation | 400 |
+| `A0037` | User Payment Token Invalid or Expired | 400 |
+| `A0038` | MIT Transaction Requires Verified User Payment Token | 400 |
+| `A0039` | Order Already Refunded by Chargeback Prevention Service | 400 |
+| `A0040` | Order Cannot Be Created Concurrently | 400 |
+| `A0045` | MIT Transaction Cannot Process, tokenId Status Unverified | 400 |
+
+#### User Related Errors (Bxxxxx)
+
+| Code | Description | HTTP Status |
+|------|-------------|-------------|
+| `B0001` | User Status Abnormal | 400 |
+| `B0002` | User Limit Exceeded | 400 |
+| `B0003` | User Insufficient Balance | 400 |
+| `B0004` | User Did Not Pay Within Timeout | 400 |
+| `B0005` | User Authorization Failed | 400 |
+| `B0006` | Invalid Phone Number | 400 |
+| `B0007` | Invalid Email Format | 400 |
+
+#### System Related Errors (Cxxxxx)
+
+| Code | Description | HTTP Status |
+|------|-------------|-------------|
+| `C0001` | System Error | 500 |
+| `C0002` | Merchant Contract Invalid | 500 |
+| `C0003` | Order Status Invalid, Cannot Continue Processing | 500 |
+| `C0004` | Order Information Mismatch | 500 |
+| `C0005` | Payment Channel Rejected | 503 |
+| `C0006` | Payment Channel Error | 503 |
+| `C0007` | Payment Channel Under Maintenance | 503 |
+
+#### Risk Related Errors (Dxxxxx)
+
+| Code | Description | HTTP Status |
+|------|-------------|-------------|
+| `D0001` | Risk Control Rejected | 406 |
+
+#### Unknown Status Errors (Exxxxx)
+
+| Code | Description | HTTP Status |
+|------|-------------|-------------|
+| `E0001` | Unknown Status (Need to query or wait for callback) | 500 |
+
+> **Note**: When receiving `E0001` error code, it indicates transaction status is unknown. **Do not close order directly**, should call query API to confirm actual status, or wait for webhook callback notification.
+<!-- sdk-sync:end:Complete%20Error%20Code%20Table -->
+
+<!-- sdk-sync:start:Environment%20URLs -->
+### Environment URLs
+
+| Environment | Base URL | Description |
+|-------------|----------|-------------|
+| `SANDBOX` | `https://api-sandbox.waffo.com` | Test environment |
+| `PRODUCTION` | `https://api.waffo.com` | Production environment |
+<!-- sdk-sync:end:Environment%20URLs -->
+
+<!-- sdk-sync:start:Timeout%20Configuration%20Recommendations -->
+### Timeout Configuration Recommendations
+
+| Operation Type | Connect Timeout | Read Timeout | Notes |
+|----------------|-----------------|--------------|-------|
+| Create Order | 5s | 30s | Recommended |
+| Create Subscription | 5s | 30s | Recommended |
+| Refund Operation | 5s | 30s | Recommended |
+| Query Operations | 5s | 15s | Can be shorter |
+<!-- sdk-sync:end:Timeout%20Configuration%20Recommendations -->
+
+<!-- sdk-sync:start:Connection%20Pool%20Recommendations -->
+### Connection Pool Recommendations
+
+| Scenario | Max Connections | Max Per Route | Notes |
+|----------|-----------------|---------------|-------|
+| Low Traffic (< 10 QPS) | 20 | 10 | Default config sufficient |
+| Medium Traffic (10-100 QPS) | 50 | 20 | Consider using OkHttp |
+| High Traffic (> 100 QPS) | 100-200 | 50 | Consider Apache HttpClient |
+<!-- sdk-sync:end:Connection%20Pool%20Recommendations -->
+
+<!-- sdk-sync:start:Update%20Subscription -->
+#### Update Subscription
+
+Update the billing amounts of an active subscription without re-authorization. Provide `subscriptionRequest` or `subscriptionId`. To charge a seat add-on immediately, include `topupInfo`; the updated billing amounts take effect from the next billing period.
+
+```go
+resp, err := client.Subscription().Update(ctx, &subscription.UpdateSubscriptionParams{
+    SubscriptionID: "subscription_id",
+    Amount:         "129.00", // New per-period amount from the next billing period
+    ProductInfo: &subscription.UpdateProductInfo{
+        TrialPeriodAmount: "0",
+        ScheduledAmounts: []subscription.ScheduledAmount{
+            {Period: "2", Amount: "99.00"}, // Per-period override
+            {Period: "3", Amount: "129.00"},
+        },
+    },
+    TopupInfo: &subscription.SubscriptionUpdateTopupInfo{
+        TopupRequest:   "mimo-topup-001", // Idempotency key for this top-up
+        TopupAmount:    "30.00",           // Amount charged immediately
+        Description:    "Seat add-on 3 seats",
+        OrderExpiredAt: "2030-01-01T00:00:00Z",
+    },
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if resp.IsSuccess() {
+    data := resp.GetData()
+    fmt.Printf("Previous Amount: %s\n", data.PreviousAmount)
+    fmt.Printf("New Amount: %s\n", data.NewAmount)
+    fmt.Printf("Next Effective Period: %s\n", data.NextEffectivePeriod)
+    fmt.Printf("Top-up Order: %s\n", data.TopupInfo.AcquiringOrderID)
+    fmt.Printf("Top-up Status: %s\n", data.TopupInfo.TopupStatus)
+}
+```
+<!-- sdk-sync:end:Update%20Subscription -->
 
 ## Support
 

@@ -338,26 +338,45 @@ type UpdateProductInfo struct {
 	ScheduledAmounts  []ScheduledAmount `json:"scheduledAmounts,omitempty"`
 }
 
+// SubscriptionUpdateTopupInfo represents a seat add-on top-up request.
+type SubscriptionUpdateTopupInfo struct {
+	TopupRequest   string `json:"topupRequest,omitempty"`
+	TopupAmount    string `json:"topupAmount,omitempty"`
+	Description    string `json:"description,omitempty"`
+	OrderExpiredAt string `json:"orderExpiredAt,omitempty"`
+}
+
 // UpdateSubscriptionParams represents the parameters for updating a subscription.
 type UpdateSubscriptionParams struct {
-	SubscriptionRequest string             `json:"subscriptionRequest,omitempty"`
-	SubscriptionID      string             `json:"subscriptionId,omitempty"`
-	Amount              string             `json:"amount,omitempty"`
-	ProductInfo         *UpdateProductInfo `json:"productInfo,omitempty"`
-	ExtraParams         types.ExtraParams  `json:"extraParams,omitempty"`
+	SubscriptionRequest string                       `json:"subscriptionRequest,omitempty"`
+	SubscriptionID      string                       `json:"subscriptionId,omitempty"`
+	Amount              string                       `json:"amount,omitempty"`
+	ProductInfo         *UpdateProductInfo           `json:"productInfo,omitempty"`
+	TopupInfo           *SubscriptionUpdateTopupInfo `json:"topupInfo,omitempty"`
+	ExtraParams         types.ExtraParams            `json:"extraParams,omitempty"`
+}
+
+// SubscriptionUpdateTopupData represents the accepted top-up order result.
+type SubscriptionUpdateTopupData struct {
+	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
+	TopupRequest     string `json:"topupRequest,omitempty"`
+	TopupAmount      string `json:"topupAmount,omitempty"`
+	TopupStatus      string `json:"topupStatus,omitempty"`
+	TopupAction      string `json:"topupAction,omitempty"`
 }
 
 // UpdateSubscriptionData represents the response data for subscription update.
 type UpdateSubscriptionData struct {
-	SubscriptionID            string            `json:"subscriptionId,omitempty"`
-	SubscriptionRequest       string            `json:"subscriptionRequest,omitempty"`
-	PreviousTrialPeriodAmount string            `json:"previousTrialPeriodAmount,omitempty"`
-	NewTrialPeriodAmount      string            `json:"newTrialPeriodAmount,omitempty"`
-	PreviousAmount            string            `json:"previousAmount,omitempty"`
-	NewAmount                 string            `json:"newAmount,omitempty"`
-	PreviousScheduledAmounts  []ScheduledAmount `json:"previousScheduledAmounts,omitempty"`
-	NewScheduledAmounts       []ScheduledAmount `json:"newScheduledAmounts,omitempty"`
-	NextEffectivePeriod       string            `json:"nextEffectivePeriod,omitempty"`
+	SubscriptionID            string                       `json:"subscriptionId,omitempty"`
+	SubscriptionRequest       string                       `json:"subscriptionRequest,omitempty"`
+	PreviousTrialPeriodAmount string                       `json:"previousTrialPeriodAmount,omitempty"`
+	NewTrialPeriodAmount      string                       `json:"newTrialPeriodAmount,omitempty"`
+	PreviousAmount            string                       `json:"previousAmount,omitempty"`
+	NewAmount                 string                       `json:"newAmount,omitempty"`
+	PreviousScheduledAmounts  []ScheduledAmount            `json:"previousScheduledAmounts,omitempty"`
+	NewScheduledAmounts       []ScheduledAmount            `json:"newScheduledAmounts,omitempty"`
+	NextEffectivePeriod       string                       `json:"nextEffectivePeriod,omitempty"`
+	TopupInfo                 *SubscriptionUpdateTopupData `json:"topupInfo,omitempty"`
 }
 
 // ChangeSubscriptionData represents the response data for subscription change.

@@ -1,0 +1,136 @@
+{
+  "module": "rsa-signing",
+  "version": "1.0.0",
+  "description": "Canonical RSA signing test vectors for cross-language compatibility",
+  "algorithm": {
+    "name": "SHA256withRSA",
+    "standardName": "RSASSA-PKCS1-v1_5",
+    "keySize": 2048,
+    "privateKeyFormat": "PKCS#8 DER encoded, Base64 string",
+    "publicKeyFormat": "X.509 SubjectPublicKeyInfo DER encoded, Base64 string"
+  },
+  "testKeys": {
+    "description": "2048-bit RSA key pair for testing only - DO NOT use in production",
+    "privateKey": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDKGzisZ0WIT3WOoF4abOj9xotlb9bKcFRcOORdxjLCriZlb3+f7AmAhn6edYaU7aXOtQQqInJmiLZM67p8r0rWeNhUqKRVW76G4JKJ6j8mh0ELrbH1/gDOKIdfpRt5Cl2Z24W42oqCMcbcCl+ZmkRgrZvL1ij7QTOai6bHD7sEq8JiQGGHHm+WvazreOU94gHYC+MNg+AXv25geEQ50+VIewKB71aSiuq6YgsCF9/rUyjoxclQhmITMsFgIvCjdUj+uzpKeO4HdG52jCap/xJiWqhInujOFOwkU5PK0VAm5tGzG9mSVZFdRbPzQ2pX6tVS0iDKFAMoqBvTjEBn/xlNAgMBAAECggEAEvspgG+WhS3JQaLoE51E6IicEOPHDW4tThf9wpzZqZUHgCFPoCpf3hVDkQhConwLRXWUtYxUqDKQxHqjIhCoe6oPzyuje2zJYQt4V8GLOsgbIMioXQ0E8Fe4FxB/mweRMOEAFxNXTND19zZ2Mgvd/iJv7l3nrWk7OnmBKVLd4ptAKv1WohqawpWB8LrnEOj4G7nZJNN0HdsugiwLR6ARpNAN4M/el1z7I4WT+dbX7cmh7FNZrDeV8L1GbhNtkFpAfkCjg9uza5tkgc60CaZAfF6smTOr0VEZrELE1HnTO1E3D4YUcksTyXdt2WXVhavRAvTif6Z8rhxehm/YTuimVQKBgQDz4U+tgCRxiXvnboNx6Bw+0V2lpgNUmWIbbTWhujApEONg4Ns30/NlArwrFq757u+tmlBe7r0STr21SNpFTjcq7kXYE5/7TRT5TbRGRckjNFqyqXPxV2EF8lM2w6Ru9KZUzi8/nj7Q6wt+amDATs4nidNWrkY/dL9xSAgB65W6WwKBgQDUJnTGL0T9IQCIdmTNI/GOweORBKd6QvVetMQNB6xVZ/oCgMWebEHSTy4cK1gwHliYtsKxpby+g5B9tMyoA8VsXIZyNOI2LYIEGobcgjprrk4czoe3aYV7lFk9/XUDQR+SncEOOtC/rMe798iMMWaZ9IFJcRGBIWCiHB4FY9+7dwKBgQC1gCuSTlnQ/abu+DpvHXVX8u0lCMZVwclX7BEMCcsp5N20DeRYSi9ML5rm3nzemUpbAwtpe3fPFjbtogh/p9Q66RWl2AUqO5WubHwMCIfG4YHWkXIuXP9iM5Rmn3fS89SOLNzRFe5eAW+OZ5EVzhBzMInOaujw9Ow9XIRJGZFXHQKBgBwPKgq8XceNAeEKp7JqOpzDEDIyB2SoToPELNn8VdLF+c8y8PBPKTWDu3mGUherK9Sm94E/hoM8K3Q04YynUwlOA4o/bFv2EOgyCfxITSnI2BP/TPv5POpnaJZGW5+ekWp26v3S0aFIXPKDh0bjkcpzCFaKWeJWY82NIntcBk9pAoGAJcgN0dVXA0BJ5AvMvKiHlhHnwYoJNbuN2+WFJycDEdqMFw0MVntZXG2/x39k/Y1VNv7AagBuZU4/f6oFNZsirl5WuaNJAzB1fwJf5kI+vW/oRWQR4Rl+rfyQcCJcOAWak+q5rcCiUdcxztvYE7EBGSjXcqkL1YUfqH8tmC06FjQ=",
+    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyhs4rGdFiE91jqBeGmzo/caLZW/WynBUXDjkXcYywq4mZW9/n+wJgIZ+nnWGlO2lzrUEKiJyZoi2TOu6fK9K1njYVKikVVu+huCSieo/JodBC62x9f4AziiHX6UbeQpdmduFuNqKgjHG3ApfmZpEYK2by9Yo+0Ezmoumxw+7BKvCYkBhhx5vlr2s63jlPeIB2AvjDYPgF79uYHhEOdPlSHsCge9WkorqumILAhff61Mo6MXJUIZiEzLBYCLwo3VI/rs6SnjuB3Rudowmqf8SYlqoSJ7ozhTsJFOTytFQJubRsxvZklWRXUWz80NqV+rVUtIgyhQDKKgb04xAZ/8ZTQIDAQAB"
+  },
+  "signingTests": [
+    {
+      "id": "RSA-001",
+      "name": "sign_basic_json",
+      "description": "Sign: sign_basic_json",
+      "input": {
+        "data": "{\"paymentRequestId\":\"test-123\",\"amount\":\"100.00\"}"
+      },
+      "output": {
+        "signature": "npN655K8wfLZeOvJ8gWYmUXPtIcgpVYJjXNTHgIgTnjOsAWkQ7QTgzPofMk2Zy4HVKY6YjaXcEejTghbmNAjkFdf9QQFc0imwszrExpcOqHpJh16j7Y1zDQaPM4ladZeHZA4kjAVJH+HO9WYo1DxX445AqKk6RbxC5CQb/1/LWIDddnq463ejhrnvRxz3GfVJ58AHD7DeKesMr1FF9jHvjfEZfaXIHdU7U1xrcn6SS2FkbHRJqxcI9zl93U3/mFyULk+s7LxqH6JBdRUeUzFZR5cQCZaXCrtEfWZzdtDHRBzh+zZxROOjj1MdRwvwkLQBOT9xantwWY/cBFNr/K97Q=="
+      }
+    },
+    {
+      "id": "RSA-002",
+      "name": "sign_unicode_data",
+      "description": "Sign: sign_unicode_data",
+      "input": {
+        "data": "{\"description\":\"测试订单\",\"amount\":\"100.00\"}"
+      },
+      "output": {
+        "signature": "RME6M+l8Z+aqb7+2rcFGuOTvLrGCFaf+he7g4Vzm4yxA2euzD+I2WUn+krbH8EjKPtupbNi1JfCLJf7vcPHE/0BMhmDWYeUb7+6BxpXlvZHUtwdncM/Hw1YxRA19p0i9btH+9DA0sqTpau/YO5TuJlN/hDZ8Nshl2mJWDOIzNs4T0E+xeXVEGsGV6nHcfdl4GbYdEdWy7gn0KXFu7xn8QB+ikpsNlIsI2fpHWj3gKLHiKZhQ3U60/Abh0a9Pb+wdPWhb6c49aKfMcevl2i1ezzCN5IxzquXNTUjPu50Ugw0qKJhGZCjgOEJIQooJgkUIe395ggfPrNRXOXnmr6regA=="
+      }
+    },
+    {
+      "id": "RSA-003",
+      "name": "sign_empty_object",
+      "description": "Sign: sign_empty_object",
+      "input": {
+        "data": "{}"
+      },
+      "output": {
+        "signature": "jbKmI8QMj/xeymfnXYafm1Lin3GhIK30Mbl0czkDiLGp9Ljmq8yoJ5PN69n6mUjAHMXSEryOKU/iRS+g1gPYlK2TgPJUGIMvmpyLpBE7dpuFVpVFvtM2xb1dmPrGtwxkf3oDk9lkOCtI7yCS0cJlRLYrtouiiVoI71HJv/IR1jrhrnCfVge4DJkp1D4FVm/JEWud0lvWhO13nskFS282msetUrmNfnRdbTQ/l7wdE8+JNc7trXhyxnOU2QlINT4KaPfaq0yUxASHwyHRLvC1H3at9LdwIxa49sOnK/G/n7DZKLZDSBnZTba4pffrt6BYNeKITwcbZdLEC39PPzb22g=="
+      }
+    },
+    {
+      "id": "RSA-004",
+      "name": "sign_complex_nested",
+      "description": "Sign: sign_complex_nested",
+      "input": {
+        "data": "{\"order\":{\"id\":\"123\",\"items\":[{\"name\":\"Product\",\"qty\":1}]},\"user\":{\"email\":\"test@example.com\"}}"
+      },
+      "output": {
+        "signature": "omL+Dm5J14ygWVu088hqGx2AtebpA1CKuZckr1Wh8uH5kUBxzNWib1nwrIbs4qG+riklwTzB5Bkh2ACjSER+gS8ouCmwA0lS4cvb0BNocX10PeAbKGkM34trWHpk8vxuZu+QrWFLolyxZdQsPACZnm64prlbTyAtY6i5cuo/QHOCG0byUsy1XmZnE/kyNblCJYdmc57XQq7wDAhIDg3EQkVRnSKrohJdKPI6oo2Gx7boDvGdP7GTuYtKNYAEpWD8w4pwLCs3iNPLNYg4W5qMb2WcZwGm+PEF3diJlkWnAW3uAsFRL+d7FaWHOueIv3j+V+5j/LZvNazRNDnyxs1+KQ=="
+      }
+    },
+    {
+      "id": "RSA-005",
+      "name": "sign_special_characters",
+      "description": "Sign: sign_special_characters",
+      "input": {
+        "data": "{\"desc\":\"Test & Demo <script>alert('xss')</script>\",\"amount\":\"99.99\"}"
+      },
+      "output": {
+        "signature": "cweuRSKP7v6f+HDuoubFhgDgof4joiutU8DU0kxg8Pah/SgV43GjtHIxXn2togOOQwha165ozCgDmHdsXCCJvzxUIEJ1gwmy4Sm6+92OYjNRlsbYCAUMlkQgf+Jh8wHW0CYMYG/VzbPoEgPZj2WL1w1sAv5nml6fGRyyYWDkiEh+TFQkSGIPrhdwcYMMwewZT7nAd7qrDg0J76CPLtzs6at+m8VkUqDv3AteKQiDFmRDesQTXsm9cZ1Ot7intcqvk15Qit04lmSP5EXLFrUhV6ajuqsQR9IgM5qHmQTYhUJDy/dldooGrXSsh+UPRmpfpV9xyXd7jNNuaBbcfJDmqw=="
+      }
+    },
+    {
+      "id": "RSA-006",
+      "name": "sign_large_payload",
+      "description": "Sign: sign_large_payload",
+      "input": {
+        "data": "{\"items\":[{\"id\":1,\"name\":\"Product 1\",\"price\":\"10.00\"},{\"id\":2,\"name\":\"Product 2\",\"price\":\"20.00\"},{\"id\":3,\"name\":\"Product 3\",\"price\":\"30.00\"}],\"metadata\":{\"version\":\"1.0\",\"timestamp\":\"2024-01-01T00:00:00Z\"}}"
+      },
+      "output": {
+        "signature": "ZThMUhMSWbDg2dKLWQUiYQRf5QQfSkO/q3GLUygbN23rGDUeYWqd9hJkEIxujagObL6sjHkbmbOZM3vsEqPDMuak/ud25XXVA4/6tGNkhiZ61H49YvNEYFnWA4LSt5V+7vPoeUR2cq3gHW9R+vlg4CcS9ZqjzyIejgvJMVglPKFHyq9qmoqdj8SoXULxyjRjpCh34V+yG9/V2zb/rxSHrLKkNqlbdcTz9S2gdwXwLDC49qjnaIQHIgiQWeisRptqI0XN1n7dRaPvGQ11JmPcUodB2xz0VWIJwIQpUCxrG+kggKjlzh9tsehMFY9USdHSFOhdHYvWstVmo+w1fwqlPw=="
+      }
+    },
+    {
+      "id": "RSA-007",
+      "name": "sign_empty_string",
+      "description": "Sign: sign_empty_string",
+      "input": {
+        "data": ""
+      },
+      "output": {
+        "signature": "GdAIBZni9el2VJ2TbLnBW2ZgHr1xNQxfuAJmtj65gAYKPTHgcOQgUOpqx45+l/Z3UeW96aCUPXjfZil8vZs/bw/8Y0JTlPpsG2N4ewiWjyAXdUYXxg/B01G5h6kXOhUUGCpwOIs66PzRDavuxjCqY8PN45JhS0uUl9r8qUzzsW3iOV0EHiSHty2sHyG8TyziaVV/jEAKrxFU9iSMDHKEQtcOET1UJzKuDHy+vKbzRDmfsrh9gNPPBTEHRCFL7RtNeS/CSinyzKpPaDjVv4dXiDbUg7RgQX8wu6A2zL4OphmfbNihaKOU0WC8FbbAnCVpf3QhFh4DAR6VA+TeTlVnrQ=="
+      }
+    }
+  ],
+  "verificationTests": [
+    {
+      "id": "RSA-V01",
+      "name": "verify_valid_signature",
+      "description": "Verify a valid signature returns true",
+      "input": {
+        "data": "{\"test\":\"data\"}",
+        "signature": "SCarr+SjWlvPWgnUOjygHd+s4pBiK+sPr9UHDLYny8MYZtCSyl/YzNzlCvpJI3A393zifKrRMlIT5ojmDH3mc7vu10ZCOLN6EV+lGdH/lYEModcgPBfW1625pYvtQ7T66Mzm/Jqe+mrKVjlUz3v4ps3zqGYsdfdXh6ijXqfv3E3O+U2I2MfYsdhgQrSykCqVLrRu+Zmv9sWZGypEhRJGnG+G9iLw7dgQ19MzL+nmRJD31ySfgIpa16pNGO7J2HZr9ht51/xxiZcNUIZpLgAWCYLOyfCySTyCelFCSI88QFRKcAW6490ac6+csqg9Vc6sNqyGovQEsXA6R1fo5wqWuA=="
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "id": "RSA-V02",
+      "name": "verify_invalid_signature",
+      "description": "Verify an invalid signature returns false",
+      "input": {
+        "data": "{\"test\":\"data\"}",
+        "signature": "aW52YWxpZC1zaWduYXR1cmU="
+      },
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "RSA-V03",
+      "name": "verify_tampered_data",
+      "description": "Verify signature fails if data is tampered",
+      "input": {
+        "originalData": "{\"test\":\"original\"}",
+        "tamperedData": "{\"test\":\"tampered\"}",
+        "signatureOfOriginal": "boufOn9hHq76ZFKgaxiipir7qqPajrytjIXLcQhljipaWqzNdZTpaPCvGRnzDm29b0l9+o1HlFIMv9SVTVtH+kimo2LTJiG4w1zGMO/cybUzpx7CKDFBe/eGmC7xpsRakSRV1GmyLvvhVK4/otWnT/R9APwabFExlSosBi3uVYJ+uACVEo98ua8hkfsXqHam88Chy93N1s4uThb33Dg/+fCOPtqxApAjQupQN3lMSuhLOyHNOKfewTFmjfEB4pRaeQQGwze9LSrC9UbWdqLCDrTg2HLonP9oOsvRppI4AfveXoTRljWgIUKKa04DpzNlHyF8z8thy95Bblpc/y6nAw=="
+      },
+      "expected": {
+        "valid": false
+      }
+    }
+  ],
+  "crossLanguageNote": "RSASSA-PKCS1-v1_5 signatures are deterministic for the same key and UTF-8 input. Every SDK must produce these exact Base64 signatures and verify them with the provided public key."
+}

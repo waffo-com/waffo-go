@@ -107,7 +107,9 @@ var goTypeRegistry = map[string]reflect.Type{
 	"subscription.ManageSubscriptionData":        reflect.TypeOf(subscription.ManageSubscriptionData{}),
 	"subscription.UpdateSubscriptionParams":      reflect.TypeOf(subscription.UpdateSubscriptionParams{}),
 	"subscription.UpdateProductInfo":             reflect.TypeOf(subscription.UpdateProductInfo{}),
+	"subscription.SubscriptionUpdateTopupInfo":   reflect.TypeOf(subscription.SubscriptionUpdateTopupInfo{}),
 	"subscription.UpdateSubscriptionData":        reflect.TypeOf(subscription.UpdateSubscriptionData{}),
+	"subscription.SubscriptionUpdateTopupData":   reflect.TypeOf(subscription.SubscriptionUpdateTopupData{}),
 	"subscription.ScheduledAmount":               reflect.TypeOf(subscription.ScheduledAmount{}),
 	"subscription.CancelSubscriptionParams":      reflect.TypeOf(subscription.CancelSubscriptionParams{}),
 	"subscription.CancelSubscriptionData":        reflect.TypeOf(subscription.CancelSubscriptionData{}),
@@ -191,7 +193,7 @@ func validatesRequiredShape(schemaName string) bool {
 // TestSchemaFieldsAlignment validates that all Go SDK types have the fields
 // defined in openapi.json (via schema-fields.json test vector).
 func TestSchemaFieldsAlignment(t *testing.T) {
-	data, err := os.ReadFile("../../../../sdk-spec/test-vectors/schema-fields.json")
+	data, err := os.ReadFile("../../sdk-spec/test-vectors/schema-fields.json")
 	if err != nil {
 		if os.IsNotExist(err) {
 			t.Skip("schema-fields.json is available only in the waffo-sdk monorepo")

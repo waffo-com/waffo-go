@@ -359,11 +359,14 @@ func (b *BaseE2ETest) CompleteCurrentCheckout(t *testing.T, card CheckoutCard) b
 	t.Logf("  Checkout current URL: %s", b.Page.URL())
 
 	if !b.fillFullCardDetails(t, card) {
-		t.Log("  Full card form not completed; trying saved-card/CVV-only authorization")
 		b.printActionCandidates(t)
-		b.selectSavedPaymentMethod(t)
-		if !b.fillCVVOnly(t, card.CVV) {
-			t.Log("  CVV-only input not visible; continuing with available submit/confirm controls")
+		b.selectCreditCardPaymentMethod(t)
+		if !b.fillFullCardDetails(t, card) {
+			t.Log("  Full card form not completed; trying saved-card/CVV-only authorization")
+			b.selectSavedPaymentMethod(t)
+			if !b.fillCVVOnly(t, card.CVV) {
+				t.Log("  CVV-only input not visible; continuing with available submit/confirm controls")
+			}
 		}
 	}
 
@@ -372,7 +375,7 @@ func (b *BaseE2ETest) CompleteCurrentCheckout(t *testing.T, card CheckoutCard) b
 	if !b.clickFirstVisible(t, []string{
 		"button[type='submit']",
 		"input[type='submit']",
-		"button:has-text('Pay')",
+		"button:text-is('Pay')",
 		"button:has-text('Submit')",
 		"button:has-text('Confirm')",
 		"button:has-text('Continue')",
@@ -581,6 +584,20 @@ func (b *BaseE2ETest) selectSavedPaymentMethod(t *testing.T) bool {
 	}
 
 	return false
+}
+
+func (b *BaseE2ETest) selectCreditCardPaymentMethod(t *testing.T) bool {
+	t.Helper()
+
+	selected := b.clickFirstVisible(t, []string{
+		"button:has-text('Credit/Debit Card')",
+		"button:has-text('Credit Card')",
+		"button:has-text('信用卡')",
+	}, "credit/debit card payment method")
+	if selected {
+		b.SleepMs(1500)
+	}
+	return selected
 }
 
 func (b *BaseE2ETest) checkAllCheckboxes(t *testing.T) {
