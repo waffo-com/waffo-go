@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README_CN.md @ commit 53f0d42 -->
+<!-- Synced with waffo-sdk/README_CN.md @ commit 9405bd4 -->
 
 [English](README.md) | **中文**
 
@@ -49,6 +49,7 @@
 - [支持](#支持)
 - [许可证](#许可证)
 - [配置 DNS 缓存 TTL](#配置-dns-缓存-ttl)
+- [开放业务取值与自定义事件](#开放业务取值与自定义事件)
 
 ## 环境要求
 
@@ -67,7 +68,7 @@
 ## 安装
 
 ```bash
-go get github.com/waffo-com/waffo-go
+go get github.com/waffo-com/waffo-go/v2
 ```
 
 ## 快速开始
@@ -78,8 +79,10 @@ go get github.com/waffo-com/waffo-go
 package main
 
 import (
-    "github.com/waffo-com/waffo-go"
-    "github.com/waffo-com/waffo-go/config"
+    "log"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/config"
 )
 
 func main() {
@@ -95,6 +98,7 @@ func main() {
     }
 
     client := waffo.New(cfg)
+    _ = client // 使用 client 调用下文展示的 API
 }
 ```
 
@@ -107,7 +111,7 @@ import (
     "log"
     "time"
 
-    "github.com/waffo-com/waffo-go/types/order"
+    "github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 ctx := context.Background()
@@ -153,37 +157,43 @@ if resp.IsSuccess() {
 
 ```go
 import (
-    "github.com/waffo-com/waffo-go/core"
+    "fmt"
+    "io"
+    "net/http"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
 )
 
-handler := client.Webhook().
-    OnPayment(func(n *core.PaymentNotification) {
-        if n.Result != nil {
-            fmt.Printf("支付 %s: %s\n", n.Result.AcquiringOrderID, n.Result.OrderStatus)
+func webhookHandler(client *waffo.Waffo) http.HandlerFunc {
+    handler := client.Webhook().
+        OnPayment(func(n *core.PaymentNotification) {
+            if n.Result != nil {
+                fmt.Printf("支付 %s: %s\n", n.Result.AcquiringOrderID, n.Result.OrderStatus)
+            }
+        }).
+        OnRefund(func(n *core.RefundNotification) {
+            if n.Result != nil {
+                fmt.Printf("退款 %s: %s\n", n.Result.RefundRequestID, n.Result.RefundStatus)
+            }
+        })
+
+    return func(w http.ResponseWriter, r *http.Request) {
+        body, _ := io.ReadAll(r.Body)
+        signature := r.Header.Get("X-SIGNATURE")
+
+        result := handler.HandleWebhook(string(body), signature)
+
+        if result.Success {
+            responseBody, responseSig := handler.BuildSuccessResponse()
+            w.Header().Set("X-SIGNATURE", responseSig)
+            _, _ = w.Write([]byte(responseBody))
+        } else {
+            responseBody, responseSig := handler.BuildFailedResponse(result.Error)
+            w.Header().Set("X-SIGNATURE", responseSig)
+            w.WriteHeader(http.StatusBadRequest)
+            _, _ = w.Write([]byte(responseBody))
         }
-    }).
-    OnRefund(func(n *core.RefundNotification) {
-        if n.Result != nil {
-            fmt.Printf("退款 %s: %s\n", n.Result.RefundRequestID, n.Result.RefundStatus)
-        }
-    })
-
-// 在 HTTP 处理器中
-func webhookHandler(w http.ResponseWriter, r *http.Request) {
-    body, _ := io.ReadAll(r.Body)
-    signature := r.Header.Get("X-SIGNATURE")
-
-    result := handler.HandleWebhook(string(body), signature)
-
-    if result.Success {
-        responseBody, responseSig := handler.BuildSuccessResponse()
-        w.Header().Set("X-SIGNATURE", responseSig)
-        w.Write([]byte(responseBody))
-    } else {
-        responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        w.Header().Set("X-SIGNATURE", responseSig)
-        w.WriteHeader(http.StatusBadRequest)
-        w.Write([]byte(responseBody))
     }
 }
 ```
@@ -223,6 +233,11 @@ client, err := waffo.FromEnv()
 
 ```go
 import (
+    "io"
+    "net/http"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
     "github.com/gin-gonic/gin"
 )
 
@@ -255,6 +270,11 @@ func setupRoutes(r *gin.Engine, waffoClient *waffo.Waffo) {
 
 ```go
 import (
+    "io"
+    "net/http"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
     "github.com/labstack/echo/v4"
 )
 
@@ -286,6 +306,8 @@ func setupRoutes(e *echo.Echo, waffoClient *waffo.Waffo) {
 
 ```go
 import (
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
     "github.com/gofiber/fiber/v2"
 )
 
@@ -328,7 +350,8 @@ resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
     OrderDescription: "高级套餐",
     NotifyURL:        "https://example.com/webhook",
     UserInfo: &order.UserInfo{
-        UserID: "USER-123",
+        UserID:    "USER-123",
+        UserEmail: "user@example.com",
     },
     PaymentInfo: &order.PaymentInfo{
         ProductName: "ONE_TIME_PAYMENT",
@@ -373,7 +396,8 @@ resp, err := client.Subscription().Create(ctx, &subscription.CreateSubscriptionP
         PeriodInterval: "1",
     },
     UserInfo: &subscription.SubscriptionUserInfo{
-        UserID: "USER-123",
+        UserID:    "USER-123",
+        UserEmail: "user@example.com",
     },
     PaymentInfo: &subscription.SubscriptionPaymentInfo{
         ProductName: "SUBSCRIPTION",
@@ -404,6 +428,12 @@ resp, err := client.Subscription().Cancel(ctx, &subscription.CancelSubscriptionP
 变更现有订阅到新的计划（升级或降级）。
 
 ```go
+import (
+    "errors"
+
+    waffoErrors "github.com/waffo-com/waffo-go/v2/errors"
+)
+
 // 新订阅请求 ID
 subscriptionRequest := fmt.Sprintf("%032x", time.Now().UnixNano())
 originSubscriptionRequest := "original-subscription-request-id"
@@ -435,10 +465,16 @@ resp, err := client.Subscription().Change(ctx, &subscription.ChangeSubscriptionP
         ProductName: "SUBSCRIPTION",
     },
     MerchantInfo: &subscription.SubscriptionMerchantInfo{},
+    // 可选字段
+    MerchantSubscriptionID:    fmt.Sprintf("MSUB_UPGRADE_%d", time.Now().UnixMilli()),
+    SuccessRedirectURL:        "https://your-site.com/subscription/upgrade/success",
+    FailedRedirectURL:         "https://your-site.com/subscription/upgrade/failed",
+    CancelRedirectURL:         "https://your-site.com/subscription/upgrade/cancel",
+    SubscriptionManagementURL: "https://your-site.com/subscription/manage",
 }, nil)
 
 if err != nil {
-    var unknownErr *errors.WaffoUnknownStatusError
+    var unknownErr *waffoErrors.WaffoUnknownStatusError
     if errors.As(err, &unknownErr) {
         // 状态未知 - 不要假设失败！用户可能已完成支付
         log.Printf("状态未知，需要查询确认: %v", unknownErr)
@@ -520,7 +556,7 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 `payMethodDetails` 响应会返回支付方式类别、支持币种、订单金额上下限和退款策略。实时可用性暂时不可获取时，`currentStatus` 可能为空。
 
 ```go
-import "github.com/waffo-com/waffo-go/types/merchant"
+import "github.com/waffo-com/waffo-go/v2/types/merchant"
 
 // 配置了 MerchantID 时会自动注入 merchantId
 resp, err := client.PayMethodConfig().Inquiry(ctx, &merchant.InquiryPayMethodConfigParams{}, nil)
@@ -552,7 +588,9 @@ if resp.IsSuccess() {
 import (
     "context"
 
-    "github.com/waffo-com/waffo-go/net"
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/config"
+    "github.com/waffo-com/waffo-go/v2/net"
 )
 
 type CustomTransport struct {
@@ -564,11 +602,18 @@ func (t *CustomTransport) Send(ctx context.Context, req *net.HttpRequest) (*net.
     return nil, nil
 }
 
-cfg, _ := config.NewConfigBuilder().
-    APIKey("your-api-key").
-    // ... 其他选项
-    CustomTransport(&CustomTransport{}).
-    Build()
+func newClientWithCustomTransport() (*waffo.Waffo, error) {
+    cfg, err := config.NewConfigBuilder().
+        APIKey("your-api-key").
+        PrivateKey("your-base64-encoded-private-key").
+        WaffoPublicKey("waffo-public-key").
+        CustomTransport(&CustomTransport{}).
+        Build()
+    if err != nil {
+        return nil, err
+    }
+    return waffo.New(cfg), nil
+}
 ```
 
 ### TLS 安全配置
@@ -577,7 +622,7 @@ SDK 默认强制使用 TLS 1.2+，无需额外配置。
 
 ```go
 // DefaultHttpTransport 自动强制使用 TLS 1.2+
-transport := net.NewDefaultHttpTransport(timeout)
+transport := net.NewDefaultHttpTransport()
 ```
 
 <!-- sdk-sync:start:%E9%92%B1%E5%8C%85%E5%9C%B0%E5%9D%80%E6%9F%A5%E8%AF%A2%E7%A4%BA%E4%BE%8B -->
@@ -586,7 +631,7 @@ transport := net.NewDefaultHttpTransport(timeout)
 查询 x402 支付的链上稳定币收款地址。响应返回目标网络、链上代币合约地址，以及 Waffo 平台收款钱包地址。第一阶段支持 `USDC`。
 
 ```go
-import "github.com/waffo-com/waffo-go/types/wallet"
+import "github.com/waffo-com/waffo-go/v2/types/wallet"
 
 // PaymentRequestID: 唯一幂等键；OrderCurrency: 第一阶段支持 USDC
 // MerchantInfo 在配置了 MerchantID 时会自动注入
@@ -631,7 +676,7 @@ handler := client.Webhook().
     OnSubscriptionStatus(func(n *core.SubscriptionStatusNotification) {
         // 处理订阅状态
     }).
-    OnSubscriptionPayment(func(n *core.SubscriptionPaymentNotification) {
+    OnSubscriptionPayment(func(n *core.SubscriptionStatusNotification) {
         // 处理订阅支付
     }).
     OnSubscriptionPeriodChanged(func(n *core.SubscriptionPeriodChangedNotification) {
@@ -870,20 +915,8 @@ java.security.Security.setProperty("networkaddress.cache.ttl", "60");
 ### 从响应中读取未知字段
 
 ```go
-// Go 中使用响应结构体上的 ExtraParams 字段（map[string]interface{}）
-// 注意：结构体中未定义的 JSON 字段都会收集到 ExtraParams
-
-// 从响应中获取额外字段
-resp, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
-    PaymentRequestID: "REQ001",
-}, nil)
-if resp.IsSuccess() {
-    data := resp.GetData()
-    // 通过 ExtraParams map 访问额外字段
-    if newField, ok := data.ExtraParams["newField"]; ok {
-        fmt.Printf("新字段: %v\n", newField)
-    }
-}
+// 未知响应字段只有在 Go 响应 DTO 增加对应类型字段后才能访问。
+// 响应字段正式支持后，请升级 waffo-go。
 ```
 
 ### 在请求中发送额外字段
@@ -924,28 +957,30 @@ resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
 
 | 错误类型 | 错误码 | 描述 |
 |----------|--------|------|
-| `WaffoError` | `S0002` | 配置错误 |
-| `WaffoError` | `S0003` | 签名错误 |
-| `WaffoError` | `S0004` | 无效的私钥 |
-| `WaffoError` | `S0005` | 无效的公钥 |
-| `WaffoError` | `S0006` | JSON 序列化错误 |
-| `WaffoError` | `S0007` | JSON 反序列化错误 |
+| `WaffoError` | `S0002` | 无效的公钥 |
+| `WaffoError` | `S0003` | 请求数据签名失败 |
+| `WaffoError` | `S0004` | 响应签名验证失败 |
+| `WaffoError` | `S0005` | 请求序列化失败 |
+| `WaffoError` | `S0006` | SDK 未知错误 |
+| `WaffoError` | `S0007` | 无效的私钥 |
 | `WaffoUnknownStatusError` | `S0001` | 网络错误，状态未知 |
-| `WaffoUnknownStatusError` | `E0001` | API 返回错误 |
+| `WaffoUnknownStatusError` | `E0001` | 服务端返回未知状态 |
+
+> `A0003` 等业务错误会原样保留在 `ApiResponse` 中，不会转换成 `S0004`。`S0004` 只表示 SDK 校验响应头 `X-SIGNATURE` 失败。
 
 ### 错误处理示例
 
 ```go
 import (
-    "github.com/waffo-com/waffo-go/errors"
+    waffoErrors "github.com/waffo-com/waffo-go/v2/errors"
 )
 
 resp, err := client.Order().Create(ctx, params, nil)
 if err != nil {
-    if waffoErr, ok := err.(*errors.WaffoError); ok {
+    if waffoErr, ok := err.(*waffoErrors.WaffoError); ok {
         fmt.Printf("Waffo 错误 [%s]: %s\n", waffoErr.ErrorCode, waffoErr.Message)
     }
-    if unknownErr, ok := err.(*errors.WaffoUnknownStatusError); ok {
+    if unknownErr, ok := err.(*waffoErrors.WaffoUnknownStatusError); ok {
         // 可能需要幂等重试
         fmt.Printf("未知状态 [%s]: %s\n", unknownErr.ErrorCode, unknownErr.Message)
     }
@@ -953,7 +988,7 @@ if err != nil {
 }
 
 if !resp.IsSuccess() {
-    fmt.Printf("API 错误: %s - %s\n", resp.ResultCode, resp.ResultMsg)
+    fmt.Printf("API 错误: %s - %s\n", resp.GetCode(), resp.GetMessage())
 }
 ```
 
@@ -1135,6 +1170,77 @@ if resp.IsSuccess() {
 }
 ```
 <!-- sdk-sync:end:%E6%9B%B4%E6%96%B0%E8%AE%A2%E9%98%85 -->
+
+<!-- sdk-sync:start:%E5%BC%80%E6%94%BE%E4%B8%9A%E5%8A%A1%E5%8F%96%E5%80%BC%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BA%8B%E4%BB%B6 -->
+## 开放业务取值与自定义事件
+
+业务字段接受任意字符串并保留原值，包括新增状态、币种、产品、周期及动作；已知常量仅提供便利取值。解析成功或 API code 成功不代表支付完成，商户仍须明确判断对应业务状态。
+
+### 兼容读取协议原值
+
+以下离线示例使用 SDK 的真实模型与访问方法。`FUTURE_STATUS` 是合成值，不代表服务端支持；解析或 API code 成功不代表业务成功。
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "github.com/waffo-com/waffo-go/v2/types/subscription"
+)
+
+func main() {
+    var detail subscription.PaymentDetail
+    if err := json.Unmarshal([]byte(`{"orderStatus":"INIT"}`), &detail); err != nil {
+        panic(err)
+    }
+    fmt.Println(detail.OrderStatus)
+}
+```
+
+`WebhookEventType` 和具体内置通知类型保留已知事件目录。未知事件只有精确注册后才执行商户代码，否则返回签名失败应答。接收回调前完成注册；映射属于实例、名称区分大小写、同名后注册覆盖。内置名称使用对应专用方法；空白名称、无效回调和配置在注册时报 `S0006`，PHP 的非 callable 参数由语言抛 `TypeError`。
+
+Java、Python、PHP 扩展回调须同步完成，PHP Promise/生成器回调不受支持。Python 在注册时拒绝 async 函数，意外返回 awaitable 时失败应答；Node.js 明确支持 Promise 回调。
+
+以下完整示例以**未经修改的 UTF-8 原始报文文件**为首个参数，以 `WAFFO_WEBHOOK_SIGNATURE` 为请求签名。通过获授权配置提供 `WAFFO_API_KEY`、`WAFFO_PRIVATE_KEY`、`WAFFO_PUBLIC_KEY` 及 Java/Python 所需的 `WAFFO_MERCHANT_ID`。示例输出签名应答 header/body；实际 HTTP 适配器须以 HTTP 200 返回这些原始字节及 `X-SIGNATURE`。`EXAMPLE_CUSTOM_NOTIFICATION` 仅为离线示例名；须替换为真实事件，并按其契约编写业务动作。处理失败时抛异常、reject 或返回 error；Node.js 等待回调完成，Go 将 error/panic 转为失败应答。
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/waffo-com/waffo-go/v2/config"
+    "github.com/waffo-com/waffo-go/v2/core"
+)
+
+func main() {
+    cfg, err := config.NewConfigBuilder().
+        APIKey(os.Getenv("WAFFO_API_KEY")).
+        PrivateKey(os.Getenv("WAFFO_PRIVATE_KEY")).
+        WaffoPublicKey(os.Getenv("WAFFO_PUBLIC_KEY")).
+        Environment(config.Sandbox).Build()
+    if err != nil { log.Fatal(err) }
+    handler, err := core.NewWebhookHandler(cfg).OnEvent("EXAMPLE_CUSTOM_NOTIFICATION", func(raw json.RawMessage) error {
+        var notification map[string]interface{}
+        if err := json.Unmarshal(raw, &notification); err != nil { return err }
+        // Validate the event's documented fields and perform your business action here.
+        fmt.Fprintln(os.Stderr, "Handled custom event:", notification["eventType"])
+        return nil
+    })
+    if err != nil { log.Fatal(err) }
+    body, err := os.ReadFile(os.Args[1])
+    if err != nil { log.Fatal(err) }
+    result := handler.HandleWebhook(string(body), os.Getenv("WAFFO_WEBHOOK_SIGNATURE"))
+    if !result.Success { fmt.Fprintln(os.Stderr, result.Error) }
+    fmt.Println("X-SIGNATURE: " + result.ResponseSignature)
+    fmt.Println(result.ResponseBody)
+}
+```
+<!-- sdk-sync:end:%E5%BC%80%E6%94%BE%E4%B8%9A%E5%8A%A1%E5%8F%96%E5%80%BC%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BA%8B%E4%BB%B6 -->
 
 ## 支持
 

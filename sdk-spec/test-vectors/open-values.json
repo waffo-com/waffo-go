@@ -1,0 +1,481 @@
+{
+  "module": "open-values",
+  "version": "1.0.0",
+  "description": "Offline synthetic compatibility cases; future values/events are not declarations of server support.",
+  "businessValues": [
+    "INIT",
+    "FUTURE_VALUE",
+    "lowercase",
+    " value "
+  ],
+  "javaFields": [
+    {
+      "class": "com.waffo.types.order.CancelOrderData",
+      "field": "orderStatus",
+      "enum": "OrderStatus",
+      "enumClass": "com.waffo.types.order.OrderStatus"
+    },
+    {
+      "class": "com.waffo.types.order.CaptureOrderData",
+      "field": "orderStatus",
+      "enum": "OrderStatus",
+      "enumClass": "com.waffo.types.order.OrderStatus"
+    },
+    {
+      "class": "com.waffo.types.order.CardInfo",
+      "field": "threeDsDecision",
+      "enum": "ThreeDsDecision",
+      "enumClass": "com.waffo.types.order.ThreeDsDecision"
+    },
+    {
+      "class": "com.waffo.types.order.CreateOrderData",
+      "field": "orderStatus",
+      "enum": "OrderStatus",
+      "enumClass": "com.waffo.types.order.OrderStatus"
+    },
+    {
+      "class": "com.waffo.types.order.CreateOrderParams",
+      "field": "orderCurrency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.order.CreateOrderParams",
+      "field": "userCurrency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.order.InquiryOrderData",
+      "field": "orderStatus",
+      "enum": "OrderStatus",
+      "enumClass": "com.waffo.types.order.OrderStatus"
+    },
+    {
+      "class": "com.waffo.types.order.OrderAction",
+      "field": "actionType",
+      "enum": "OrderActionType",
+      "enumClass": "com.waffo.types.order.OrderActionType"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfo",
+      "field": "productName",
+      "enum": "ProductName",
+      "enumClass": "com.waffo.types.payment.ProductName"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfo",
+      "field": "payMethodUserAccountType",
+      "enum": "PayMethodUserAccountType",
+      "enumClass": "com.waffo.types.order.PayMethodUserAccountType"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfo",
+      "field": "captureMode",
+      "enum": "CaptureMode",
+      "enumClass": "com.waffo.types.order.CaptureMode"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfo",
+      "field": "merchantInitiatedMode",
+      "enum": "MerchantInitiatedMode",
+      "enumClass": "com.waffo.types.order.MerchantInitiatedMode"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfoResponse",
+      "field": "productName",
+      "enum": "ProductName",
+      "enumClass": "com.waffo.types.payment.ProductName"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfoResponse",
+      "field": "payMethodUserAccountType",
+      "enum": "PayMethodUserAccountType",
+      "enumClass": "com.waffo.types.order.PayMethodUserAccountType"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfoResponse",
+      "field": "captureMode",
+      "enum": "CaptureMode",
+      "enumClass": "com.waffo.types.order.CaptureMode"
+    },
+    {
+      "class": "com.waffo.types.order.PaymentInfoResponse",
+      "field": "merchantInitiatedMode",
+      "enum": "MerchantInitiatedMode",
+      "enumClass": "com.waffo.types.order.MerchantInitiatedMode"
+    },
+    {
+      "class": "com.waffo.types.order.RefundOrderData",
+      "field": "refundStatus",
+      "enum": "RefundStatus",
+      "enumClass": "com.waffo.types.refund.RefundStatus"
+    },
+    {
+      "class": "com.waffo.types.order.RefundUserInfo",
+      "field": "userType",
+      "enum": "RefundUserType",
+      "enumClass": "com.waffo.types.refund.RefundUserType"
+    },
+    {
+      "class": "com.waffo.types.order.RiskData",
+      "field": "userType",
+      "enum": "RiskUserType",
+      "enumClass": "com.waffo.types.common.RiskUserType"
+    },
+    {
+      "class": "com.waffo.types.order.UserInfo",
+      "field": "userTerminal",
+      "enum": "UserTerminalType",
+      "enumClass": "com.waffo.types.order.UserTerminalType"
+    },
+    {
+      "class": "com.waffo.types.order.UserInfoResponse",
+      "field": "userTerminal",
+      "enum": "UserTerminalType",
+      "enumClass": "com.waffo.types.order.UserTerminalType"
+    },
+    {
+      "class": "com.waffo.types.refund.InquiryRefundData",
+      "field": "refundStatus",
+      "enum": "RefundStatus",
+      "enumClass": "com.waffo.types.refund.RefundStatus"
+    },
+    {
+      "class": "com.waffo.types.refund.InquiryRefundData",
+      "field": "refundSource",
+      "enum": "RefundSource",
+      "enumClass": "com.waffo.types.refund.RefundSource"
+    },
+    {
+      "class": "com.waffo.types.refund.RefundUserInfoResponse",
+      "field": "userType",
+      "enum": "RefundUserType",
+      "enumClass": "com.waffo.types.refund.RefundUserType"
+    },
+    {
+      "class": "com.waffo.types.subscription.CreateSubscriptionData",
+      "field": "subscriptionStatus",
+      "enum": "SubscriptionStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.CreateSubscriptionParams",
+      "field": "currency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.subscription.CreateSubscriptionParams",
+      "field": "userCurrency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.subscription.InquirySubscriptionData",
+      "field": "subscriptionStatus",
+      "enum": "SubscriptionStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.ManageSubscriptionData",
+      "field": "subscriptionStatus",
+      "enum": "SubscriptionStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.PaymentDetail",
+      "field": "orderStatus",
+      "enum": "SubscriptionOrderStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionOrderStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.ProductInfo",
+      "field": "periodType",
+      "enum": "PeriodType",
+      "enumClass": "com.waffo.types.subscription.PeriodType"
+    },
+    {
+      "class": "com.waffo.types.subscription.ProductInfo",
+      "field": "trialPeriodType",
+      "enum": "PeriodType",
+      "enumClass": "com.waffo.types.subscription.PeriodType"
+    },
+    {
+      "class": "com.waffo.types.subscription.ProductInfoResponse",
+      "field": "periodType",
+      "enum": "PeriodType",
+      "enumClass": "com.waffo.types.subscription.PeriodType"
+    },
+    {
+      "class": "com.waffo.types.subscription.ProductInfoResponse",
+      "field": "trialPeriodType",
+      "enum": "PeriodType",
+      "enumClass": "com.waffo.types.subscription.PeriodType"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeData",
+      "field": "subscriptionChangeStatus",
+      "enum": "SubscriptionChangeStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionChangeStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeInquiryData",
+      "field": "subscriptionChangeStatus",
+      "enum": "SubscriptionChangeStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionChangeStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeInquiryData",
+      "field": "currency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeInquiryData",
+      "field": "userCurrency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeParams",
+      "field": "currency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeParams",
+      "field": "userCurrency",
+      "enum": "CurrencyCode",
+      "enumClass": "com.waffo.types.iso.CurrencyCode"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeProductInfo",
+      "field": "periodType",
+      "enum": "PeriodType",
+      "enumClass": "com.waffo.types.subscription.PeriodType"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionChangeProductInfo",
+      "field": "trialPeriodType",
+      "enum": "PeriodType",
+      "enumClass": "com.waffo.types.subscription.PeriodType"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionPaymentInfo",
+      "field": "productName",
+      "enum": "SubscriptionProductName",
+      "enumClass": "com.waffo.types.payment.SubscriptionProductName"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionPaymentInfo",
+      "field": "payMethodUserAccountType",
+      "enum": "PayMethodUserAccountType",
+      "enumClass": "com.waffo.types.order.PayMethodUserAccountType"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionPaymentInfoResponse",
+      "field": "productName",
+      "enum": "SubscriptionProductName",
+      "enumClass": "com.waffo.types.payment.SubscriptionProductName"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionPaymentInfoResponse",
+      "field": "payMethodUserAccountType",
+      "enum": "PayMethodUserAccountType",
+      "enumClass": "com.waffo.types.order.PayMethodUserAccountType"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionPaymentRecord",
+      "field": "status",
+      "enum": "SubscriptionOrderStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionOrderStatus"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionRiskData",
+      "field": "userType",
+      "enum": "RiskUserType",
+      "enumClass": "com.waffo.types.common.RiskUserType"
+    },
+    {
+      "class": "com.waffo.types.subscription.SubscriptionUserInfo",
+      "field": "userTerminal",
+      "enum": "SubscriptionUserTerminalType",
+      "enumClass": "com.waffo.types.subscription.SubscriptionUserTerminalType"
+    },
+    {
+      "class": "com.waffo.types.webhook.PaymentNotificationResult",
+      "field": "orderStatus",
+      "enum": "OrderStatus",
+      "enumClass": "com.waffo.types.order.OrderStatus"
+    },
+    {
+      "class": "com.waffo.types.webhook.RefundNotificationResult",
+      "field": "refundStatus",
+      "enum": "RefundStatus",
+      "enumClass": "com.waffo.types.refund.RefundStatus"
+    },
+    {
+      "class": "com.waffo.types.webhook.SubscriptionNotificationResult",
+      "field": "subscriptionStatus",
+      "enum": "SubscriptionStatus",
+      "enumClass": "com.waffo.types.subscription.SubscriptionStatus"
+    }
+  ],
+  "nodeAliases": [
+    {
+      "module": "order",
+      "name": "OrderStatus"
+    },
+    {
+      "module": "order",
+      "name": "RefundStatus"
+    },
+    {
+      "module": "refund",
+      "name": "RefundStatus"
+    },
+    {
+      "module": "subscription",
+      "name": "SubscriptionStatus"
+    },
+    {
+      "module": "subscription",
+      "name": "SubscriptionChangeStatus"
+    },
+    {
+      "module": "subscription",
+      "name": "PeriodType"
+    },
+    {
+      "module": "subscription",
+      "name": "SubscriptionManageAction"
+    }
+  ],
+  "knownEvents": [
+    {
+      "eventType": "PAYMENT_NOTIFICATION",
+      "result": {
+        "acquiringOrderId": "open-order",
+        "orderStatus": "FUTURE_VALUE"
+      }
+    },
+    {
+      "eventType": "REFUND_NOTIFICATION",
+      "result": {
+        "acquiringRefundOrderId": "open-refund",
+        "refundStatus": "FUTURE_VALUE"
+      }
+    },
+    {
+      "eventType": "SUBSCRIPTION_STATUS_NOTIFICATION",
+      "result": {
+        "subscriptionId": "open-subscription",
+        "subscriptionStatus": "ACTIVE",
+        "paymentDetails": [
+          {
+            "orderStatus": "INIT"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "SUBSCRIPTION_PERIOD_CHANGED_NOTIFICATION",
+      "result": {
+        "subscriptionId": "open-period",
+        "subscriptionStatus": "FUTURE_VALUE",
+        "paymentDetails": [
+          {
+            "orderStatus": "FUTURE_VALUE"
+          }
+        ]
+      }
+    },
+    {
+      "eventType": "SUBSCRIPTION_CHANGE_NOTIFICATION",
+      "result": {
+        "subscriptionId": "open-change",
+        "subscriptionChangeStatus": "FUTURE_VALUE"
+      }
+    }
+  ],
+  "customEvent": {
+    "eventType": "EXAMPLE_CUSTOM_NOTIFICATION",
+    "result": {
+      "id": "custom-id",
+      "status": "FUTURE_VALUE"
+    },
+    "futureField": {
+      "kept": true
+    }
+  },
+  "invalidEventNames": [
+    "",
+    " ",
+    "\t\r\n"
+  ],
+  "currencyCases": [
+    {
+      "currency": "USD",
+      "amount": "1.001",
+      "error": "INVALID_AMOUNT_PRECISION"
+    },
+    {
+      "currency": "JPY",
+      "amount": "1.1",
+      "error": "INVALID_AMOUNT_PRECISION"
+    },
+    {
+      "currency": "FUTURE_CURRENCY",
+      "amount": "1.123456789",
+      "error": null
+    },
+    {
+      "currency": "FUTURE_CURRENCY",
+      "amount": "abc",
+      "error": "INVALID_AMOUNT_FORMAT"
+    }
+  ],
+  "failureEvents": [
+    {
+      "eventType": "PAYMENT_NOTIFICATION",
+      "result": {
+        "acquiringOrderId": "failure-order",
+        "orderStatus": "ORDER_CLOSE",
+        "orderFailedReason": {
+          "orderFailedCode": "EXAMPLE_FAILURE",
+          "orderFailedDescription": "synthetic failure"
+        }
+      }
+    },
+    {
+      "eventType": "REFUND_NOTIFICATION",
+      "result": {
+        "acquiringRefundOrderId": "failure-refund",
+        "refundStatus": "ORDER_REFUND_FAILED",
+        "refundFailedReason": {
+          "orderFailedCode": "EXAMPLE_FAILURE",
+          "orderFailedDescription": "synthetic failure"
+        }
+      }
+    },
+    {
+      "eventType": "SUBSCRIPTION_STATUS_NOTIFICATION",
+      "result": {
+        "subscriptionId": "failure-subscription",
+        "subscriptionStatus": "CLOSE",
+        "failedReason": {
+          "orderFailedCode": "EXAMPLE_FAILURE",
+          "orderFailedDescription": "synthetic failure"
+        }
+      }
+    },
+    {
+      "eventType": "SUBSCRIPTION_CHANGE_NOTIFICATION",
+      "result": {
+        "subscriptionId": "failure-change",
+        "subscriptionChangeStatus": "CLOSED"
+      }
+    }
+  ]
+}

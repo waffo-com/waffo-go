@@ -3,8 +3,10 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/waffo-com/waffo-go/v2/config"
+	waffoerrors "github.com/waffo-com/waffo-go/v2/errors"
 	"github.com/waffo-com/waffo-go/v2/types/order"
 	"github.com/waffo-com/waffo-go/v2/types/subscription"
 	"github.com/waffo-com/waffo-go/v2/utils"
@@ -265,12 +267,14 @@ type WebhookHandler struct {
 	subscriptionPaymentHandler       SubscriptionPaymentHandler
 	subscriptionPeriodChangedHandler SubscriptionPeriodChangedHandler
 	subscriptionChangeHandler        SubscriptionChangeHandler
+	customEventHandlers              map[string]func(json.RawMessage) error
 }
 
 // NewWebhookHandler creates a new WebhookHandler.
 func NewWebhookHandler(cfg *config.WaffoConfig) *WebhookHandler {
 	return &WebhookHandler{
-		config: cfg,
+		config:              cfg,
+		customEventHandlers: make(map[string]func(json.RawMessage) error),
 	}
 }
 
@@ -314,6 +318,23 @@ func (h *WebhookHandler) OnSubscriptionChange(handler SubscriptionChangeHandler)
 	return h
 }
 
+// OnEvent registers an exact custom event name before serving callbacks.
+// A later registration replaces the same name. Built-in names use dedicated methods.
+func (h *WebhookHandler) OnEvent(eventType string, handler func(json.RawMessage) error) (*WebhookHandler, error) {
+	if strings.TrimSpace(eventType) == "" {
+		return nil, waffoerrors.NewWaffoError(waffoerrors.CodeUnexpectedError, "custom event name must not be blank")
+	}
+	if handler == nil {
+		return nil, waffoerrors.NewWaffoError(waffoerrors.CodeUnexpectedError, "custom event handler must not be nil")
+	}
+	switch eventType {
+	case EventPayment, EventRefund, EventSubscriptionStatus, EventSubscriptionPeriodChanged, EventSubscriptionChange:
+		return nil, waffoerrors.NewWaffoError(waffoerrors.CodeUnexpectedError, "use the dedicated handler for built-in event: "+eventType)
+	}
+	h.customEventHandlers[eventType] = handler
+	return h, nil
+}
+
 // HandleWebhook processes an incoming webhook request.
 func (h *WebhookHandler) HandleWebhook(body string, signature string) *WebhookResult {
 	// 1. Verify signature
@@ -350,7 +371,11 @@ func (h *WebhookHandler) HandleWebhook(body string, signature string) *WebhookRe
 	case EventSubscriptionChange:
 		handlerErr = h.handleSubscriptionChange(body)
 	default:
-		return h.buildFailedResult(fmt.Sprintf("unknown event type: %s", event.EventType))
+		handler := h.customEventHandlers[event.EventType]
+		if handler == nil {
+			return h.buildFailedResult(fmt.Sprintf("unknown event type: %s", event.EventType))
+		}
+		handlerErr = h.callEventHandler(handler, json.RawMessage(body))
 	}
 
 	if handlerErr != nil {
@@ -359,6 +384,19 @@ func (h *WebhookHandler) HandleWebhook(body string, signature string) *WebhookRe
 
 	// 4. Build success response
 	return h.buildSuccessResult()
+}
+
+func (h *WebhookHandler) callEventHandler(handler func(json.RawMessage) error, body json.RawMessage) (err error) {
+	completed := false
+	defer func() {
+		if !completed {
+			// Go 1.20 的 panic(nil) 也必须返回失败，不能依赖 recover() 非空。
+			err = fmt.Errorf("custom event handler panicked: %v", recover())
+		}
+	}()
+	err = handler(body)
+	completed = true
+	return
 }
 
 // VerifySignature verifies the webhook signature.

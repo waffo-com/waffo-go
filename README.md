@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README.md @ commit 53f0d42 -->
+<!-- Synced with waffo-sdk/README.md @ commit 9405bd4 -->
 
 **English** | [中文](README_CN.md)
 
@@ -51,6 +51,7 @@ Official Go SDK for [Waffo Payment Platform](https://www.waffo.com), providing o
 - [License](#license)
 - [Payment Method Types](#payment-method-types)
 - [Handling New API Fields (ExtraParams)](#handling-new-api-fields-extraparams)
+- [Open Business Values and Custom Events](#open-business-values-and-custom-events)
 
 ## Requirements
 
@@ -69,7 +70,7 @@ Official Go SDK for [Waffo Payment Platform](https://www.waffo.com), providing o
 ## Installation
 
 ```bash
-go get github.com/waffo-com/waffo-go
+go get github.com/waffo-com/waffo-go/v2
 ```
 
 ## Quick Start
@@ -80,8 +81,10 @@ go get github.com/waffo-com/waffo-go
 package main
 
 import (
-    "github.com/waffo-com/waffo-go"
-    "github.com/waffo-com/waffo-go/config"
+    "log"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/config"
 )
 
 func main() {
@@ -97,6 +100,7 @@ func main() {
     }
 
     client := waffo.New(cfg)
+    _ = client // Use client to call the APIs shown below
 }
 ```
 
@@ -109,7 +113,7 @@ import (
     "log"
     "time"
 
-    "github.com/waffo-com/waffo-go/types/order"
+    "github.com/waffo-com/waffo-go/v2/types/order"
 )
 
 ctx := context.Background()
@@ -155,37 +159,43 @@ if resp.IsSuccess() {
 
 ```go
 import (
-    "github.com/waffo-com/waffo-go/core"
+    "fmt"
+    "io"
+    "net/http"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
 )
 
-handler := client.Webhook().
-    OnPayment(func(n *core.PaymentNotification) {
-        if n.Result != nil {
-            fmt.Printf("Payment %s: %s\n", n.Result.AcquiringOrderID, n.Result.OrderStatus)
+func webhookHandler(client *waffo.Waffo) http.HandlerFunc {
+    handler := client.Webhook().
+        OnPayment(func(n *core.PaymentNotification) {
+            if n.Result != nil {
+                fmt.Printf("Payment %s: %s\n", n.Result.AcquiringOrderID, n.Result.OrderStatus)
+            }
+        }).
+        OnRefund(func(n *core.RefundNotification) {
+            if n.Result != nil {
+                fmt.Printf("Refund %s: %s\n", n.Result.RefundRequestID, n.Result.RefundStatus)
+            }
+        })
+
+    return func(w http.ResponseWriter, r *http.Request) {
+        body, _ := io.ReadAll(r.Body)
+        signature := r.Header.Get("X-SIGNATURE")
+
+        result := handler.HandleWebhook(string(body), signature)
+
+        if result.Success {
+            responseBody, responseSig := handler.BuildSuccessResponse()
+            w.Header().Set("X-SIGNATURE", responseSig)
+            _, _ = w.Write([]byte(responseBody))
+        } else {
+            responseBody, responseSig := handler.BuildFailedResponse(result.Error)
+            w.Header().Set("X-SIGNATURE", responseSig)
+            w.WriteHeader(http.StatusBadRequest)
+            _, _ = w.Write([]byte(responseBody))
         }
-    }).
-    OnRefund(func(n *core.RefundNotification) {
-        if n.Result != nil {
-            fmt.Printf("Refund %s: %s\n", n.Result.RefundRequestID, n.Result.RefundStatus)
-        }
-    })
-
-// In your HTTP handler
-func webhookHandler(w http.ResponseWriter, r *http.Request) {
-    body, _ := io.ReadAll(r.Body)
-    signature := r.Header.Get("X-SIGNATURE")
-
-    result := handler.HandleWebhook(string(body), signature)
-
-    if result.Success {
-        responseBody, responseSig := handler.BuildSuccessResponse()
-        w.Header().Set("X-SIGNATURE", responseSig)
-        w.Write([]byte(responseBody))
-    } else {
-        responseBody, responseSig := handler.BuildFailedResponse(result.Error)
-        w.Header().Set("X-SIGNATURE", responseSig)
-        w.WriteHeader(http.StatusBadRequest)
-        w.Write([]byte(responseBody))
     }
 }
 ```
@@ -225,6 +235,11 @@ client, err := waffo.FromEnv()
 
 ```go
 import (
+    "io"
+    "net/http"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
     "github.com/gin-gonic/gin"
 )
 
@@ -257,6 +272,11 @@ func setupRoutes(r *gin.Engine, waffoClient *waffo.Waffo) {
 
 ```go
 import (
+    "io"
+    "net/http"
+
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
     "github.com/labstack/echo/v4"
 )
 
@@ -288,6 +308,8 @@ func setupRoutes(e *echo.Echo, waffoClient *waffo.Waffo) {
 
 ```go
 import (
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/core"
     "github.com/gofiber/fiber/v2"
 )
 
@@ -330,7 +352,8 @@ resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
     OrderDescription: "Premium Plan",
     NotifyURL:        "https://example.com/webhook",
     UserInfo: &order.UserInfo{
-        UserID: "USER-123",
+        UserID:    "USER-123",
+        UserEmail: "user@example.com",
     },
     PaymentInfo: &order.PaymentInfo{
         ProductName: "ONE_TIME_PAYMENT",
@@ -375,7 +398,8 @@ resp, err := client.Subscription().Create(ctx, &subscription.CreateSubscriptionP
         PeriodInterval: "1",
     },
     UserInfo: &subscription.SubscriptionUserInfo{
-        UserID: "USER-123",
+        UserID:    "USER-123",
+        UserEmail: "user@example.com",
     },
     PaymentInfo: &subscription.SubscriptionPaymentInfo{
         ProductName: "SUBSCRIPTION",
@@ -408,6 +432,12 @@ Change an existing subscription to a new plan (upgrade or downgrade).
 #### Change Subscription
 
 ```go
+import (
+    "errors"
+
+    waffoErrors "github.com/waffo-com/waffo-go/v2/errors"
+)
+
 // New subscription request ID for the change
 subscriptionRequest := fmt.Sprintf("%032x", time.Now().UnixNano())
 originSubscriptionRequest := "original-subscription-request-id"
@@ -448,7 +478,7 @@ resp, err := client.Subscription().Change(ctx, &subscription.ChangeSubscriptionP
 }, nil)
 
 if err != nil {
-    var unknownErr *errors.WaffoUnknownStatusError
+    var unknownErr *waffoErrors.WaffoUnknownStatusError
     if errors.As(err, &unknownErr) {
         // Status unknown - DO NOT assume failure! User may have completed payment
         log.Printf("Unknown status, need to query: %v", unknownErr)
@@ -530,7 +560,7 @@ resp, err := client.MerchantConfig().Inquiry(ctx, &merchant.InquiryMerchantConfi
 The `payMethodDetails` response includes the payment method category, supported currency, order amount limits, and refund policy. `currentStatus` can be absent when real-time availability is temporarily unavailable.
 
 ```go
-import "github.com/waffo-com/waffo-go/types/merchant"
+import "github.com/waffo-com/waffo-go/v2/types/merchant"
 
 // merchantId is auto-injected from config if MerchantID is set
 resp, err := client.PayMethodConfig().Inquiry(ctx, &merchant.InquiryPayMethodConfigParams{}, nil)
@@ -559,7 +589,7 @@ if resp.IsSuccess() {
 Inquire the on-chain stablecoin receiving address for an x402 payment. The response returns the target network, the on-chain token contract, and the Waffo platform wallet address to send funds to. Phase 1 supports `USDC`.
 
 ```go
-import "github.com/waffo-com/waffo-go/types/wallet"
+import "github.com/waffo-com/waffo-go/v2/types/wallet"
 
 // PaymentRequestID: unique idempotency key; OrderCurrency: Phase 1 supports USDC
 // MerchantInfo is auto-injected from config when MerchantID is set
@@ -603,7 +633,7 @@ handler := client.Webhook().
     OnSubscriptionStatus(func(n *core.SubscriptionStatusNotification) {
         // Handle subscription status
     }).
-    OnSubscriptionPayment(func(n *core.SubscriptionPaymentNotification) {
+    OnSubscriptionPayment(func(n *core.SubscriptionStatusNotification) {
         // Handle subscription payment
     }).
     OnSubscriptionPeriodChanged(func(n *core.SubscriptionPeriodChangedNotification) {
@@ -807,7 +837,9 @@ Select an e-wallet channel:
 import (
     "context"
 
-    "github.com/waffo-com/waffo-go/net"
+    "github.com/waffo-com/waffo-go/v2"
+    "github.com/waffo-com/waffo-go/v2/config"
+    "github.com/waffo-com/waffo-go/v2/net"
 )
 
 type CustomTransport struct {
@@ -819,11 +851,18 @@ func (t *CustomTransport) Send(ctx context.Context, req *net.HttpRequest) (*net.
     return nil, nil
 }
 
-cfg, _ := config.NewConfigBuilder().
-    APIKey("your-api-key").
-    // ... other options
-    CustomTransport(&CustomTransport{}).
-    Build()
+func newClientWithCustomTransport() (*waffo.Waffo, error) {
+    cfg, err := config.NewConfigBuilder().
+        APIKey("your-api-key").
+        PrivateKey("your-base64-encoded-private-key").
+        WaffoPublicKey("waffo-public-key").
+        CustomTransport(&CustomTransport{}).
+        Build()
+    if err != nil {
+        return nil, err
+    }
+    return waffo.New(cfg), nil
+}
 ```
 
 ### TLS Security Configuration
@@ -832,8 +871,79 @@ The SDK enforces TLS 1.2+ by default. No additional configuration is required.
 
 ```go
 // TLS 1.2+ is enforced automatically in DefaultHttpTransport
-transport := net.NewDefaultHttpTransport(timeout)
+transport := net.NewDefaultHttpTransport()
 ```
+
+<!-- sdk-sync:start:Open%20Business%20Values%20and%20Custom%20Events -->
+## Open Business Values and Custom Events
+
+Business fields accept arbitrary strings and preserve their original value, including new statuses, currencies, products, periods and actions. The known constants are convenience values. A parsed response or a successful API code does not establish payment success; compare the relevant business status explicitly.
+
+### Read protocol values without changing existing calls
+
+These offline examples show the real SDK model/accessor APIs. `FUTURE_STATUS` is synthetic and does not declare server support. Parsing or API code success does not establish business success.
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "github.com/waffo-com/waffo-go/v2/types/subscription"
+)
+
+func main() {
+    var detail subscription.PaymentDetail
+    if err := json.Unmarshal([]byte(`{"orderStatus":"INIT"}`), &detail); err != nil {
+        panic(err)
+    }
+    fmt.Println(detail.OrderStatus)
+}
+```
+
+`WebhookEventType` and concrete built-in notification types remain the known event catalogue. Unknown events return a signed failure unless your application registers that exact name. Register before serving callbacks; custom registrations are per instance, case-sensitive, and a later registration replaces the same name. Built-in names use their dedicated methods. Blank names and invalid callbacks/configuration fail at registration with `S0006`; PHP rejects non-callable arguments with its native `TypeError`.
+
+Java, Python and PHP custom callbacks must complete synchronously; PHP Promise/generator callbacks are unsupported. Python rejects async functions at registration and returns failure for an unexpected awaitable result. Node.js explicitly supports Promise callbacks.
+
+The examples below take the **raw, unmodified UTF-8 body file** as their first argument and `WAFFO_WEBHOOK_SIGNATURE` as the request signature. Set `WAFFO_API_KEY`, `WAFFO_PRIVATE_KEY`, `WAFFO_PUBLIC_KEY` and Java/Python's `WAFFO_MERCHANT_ID` using your authorized configuration. They print the signed response header/body; in your HTTP adapter send those bytes with HTTP 200 and the `X-SIGNATURE` header. `EXAMPLE_CUSTOM_NOTIFICATION` is an offline example name: replace it and implement your business action against the event's real contract. Reject/throw/return an error if processing fails; Node.js awaits the callback, and Go converts callback errors or panics into failure responses.
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+
+    "github.com/waffo-com/waffo-go/v2/config"
+    "github.com/waffo-com/waffo-go/v2/core"
+)
+
+func main() {
+    cfg, err := config.NewConfigBuilder().
+        APIKey(os.Getenv("WAFFO_API_KEY")).
+        PrivateKey(os.Getenv("WAFFO_PRIVATE_KEY")).
+        WaffoPublicKey(os.Getenv("WAFFO_PUBLIC_KEY")).
+        Environment(config.Sandbox).Build()
+    if err != nil { log.Fatal(err) }
+    handler, err := core.NewWebhookHandler(cfg).OnEvent("EXAMPLE_CUSTOM_NOTIFICATION", func(raw json.RawMessage) error {
+        var notification map[string]interface{}
+        if err := json.Unmarshal(raw, &notification); err != nil { return err }
+        // Validate the event's documented fields and perform your business action here.
+        fmt.Fprintln(os.Stderr, "Handled custom event:", notification["eventType"])
+        return nil
+    })
+    if err != nil { log.Fatal(err) }
+    body, err := os.ReadFile(os.Args[1])
+    if err != nil { log.Fatal(err) }
+    result := handler.HandleWebhook(string(body), os.Getenv("WAFFO_WEBHOOK_SIGNATURE"))
+    if !result.Success { fmt.Fprintln(os.Stderr, result.Error) }
+    fmt.Println("X-SIGNATURE: " + result.ResponseSignature)
+    fmt.Println(result.ResponseBody)
+}
+```
+<!-- sdk-sync:end:Open%20Business%20Values%20and%20Custom%20Events -->
 
 ## Handling New API Fields (ExtraParams)
 
@@ -842,20 +952,8 @@ When Waffo API adds new fields that are not yet defined in the SDK, you can use 
 ### Reading Unknown Fields from Responses
 
 ```go
-// In Go, use the ExtraParams field (map[string]interface{}) on response data structs
-// Note: ExtraParams is populated for any JSON fields not defined in the struct
-
-// Get extra field from response
-resp, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
-    PaymentRequestID: "REQ001",
-}, nil)
-if resp.IsSuccess() {
-    data := resp.GetData()
-    // Access extra fields via ExtraParams map
-    if newField, ok := data.ExtraParams["newField"]; ok {
-        fmt.Printf("New field: %v\n", newField)
-    }
-}
+// Unknown response fields are not exposed until the typed Go response DTO is updated.
+// Upgrade waffo-go when the response field becomes officially supported.
 ```
 
 ### Sending Extra Fields in Requests
@@ -895,28 +993,30 @@ resp, err := client.Order().Create(ctx, &order.CreateOrderParams{
 
 | Error Type | Error Code | Description |
 |------------|------------|-------------|
-| `WaffoError` | `S0002` | Configuration error |
-| `WaffoError` | `S0003` | Signature error |
-| `WaffoError` | `S0004` | Invalid private key |
-| `WaffoError` | `S0005` | Invalid public key |
-| `WaffoError` | `S0006` | JSON serialization error |
-| `WaffoError` | `S0007` | JSON deserialization error |
+| `WaffoError` | `S0002` | Invalid public key |
+| `WaffoError` | `S0003` | Failed to sign request data |
+| `WaffoError` | `S0004` | Response signature verification failed |
+| `WaffoError` | `S0005` | Request serialization failed |
+| `WaffoError` | `S0006` | Unexpected SDK error |
+| `WaffoError` | `S0007` | Invalid private key |
 | `WaffoUnknownStatusError` | `S0001` | Network error, unknown status |
-| `WaffoUnknownStatusError` | `E0001` | API returned error |
+| `WaffoUnknownStatusError` | `E0001` | Server returned unknown status |
+
+> Business errors such as `A0003` are returned unchanged in `ApiResponse`; they are not converted to `S0004`. `S0004` only indicates that SDK verification of the response `X-SIGNATURE` failed.
 
 ### Error Handling Example
 
 ```go
 import (
-    "github.com/waffo-com/waffo-go/errors"
+    waffoErrors "github.com/waffo-com/waffo-go/v2/errors"
 )
 
 resp, err := client.Order().Create(ctx, params, nil)
 if err != nil {
-    if waffoErr, ok := err.(*errors.WaffoError); ok {
+    if waffoErr, ok := err.(*waffoErrors.WaffoError); ok {
         fmt.Printf("Waffo Error [%s]: %s\n", waffoErr.ErrorCode, waffoErr.Message)
     }
-    if unknownErr, ok := err.(*errors.WaffoUnknownStatusError); ok {
+    if unknownErr, ok := err.(*waffoErrors.WaffoUnknownStatusError); ok {
         // Idempotent retry may be needed
         fmt.Printf("Unknown Status [%s]: %s\n", unknownErr.ErrorCode, unknownErr.Message)
     }
@@ -924,7 +1024,7 @@ if err != nil {
 }
 
 if !resp.IsSuccess() {
-    fmt.Printf("API Error: %s - %s\n", resp.ResultCode, resp.ResultMsg)
+    fmt.Printf("API Error: %s - %s\n", resp.GetCode(), resp.GetMessage())
 }
 ```
 

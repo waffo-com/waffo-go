@@ -18,6 +18,8 @@ import (
 
 	waffo "github.com/waffo-com/waffo-go/v2"
 	"github.com/waffo-com/waffo-go/v2/config"
+	"github.com/waffo-com/waffo-go/v2/core"
+	waffoErrors "github.com/waffo-com/waffo-go/v2/errors"
 	"github.com/waffo-com/waffo-go/v2/net"
 	"github.com/waffo-com/waffo-go/v2/types/order"
 	"github.com/waffo-com/waffo-go/v2/types/refund"
@@ -49,6 +51,8 @@ func TestReadmeDemoOffline_ReadmesUseCurrentAPIsAndSafeRequestIDs(t *testing.T) 
 			"refund.QueryRefundParams",
 			"SubscriptionPlanID:",
 			"BillingCycle:",
+			"resp.ResultCode",
+			"resp.ResultMsg",
 		} {
 			if strings.Contains(string(content), stale) {
 				t.Errorf("%s contains stale or unsafe README code %q", readmePath, stale)
@@ -59,6 +63,76 @@ func TestReadmeDemoOffline_ReadmesUseCurrentAPIsAndSafeRequestIDs(t *testing.T) 
 	requestID := fmt.Sprintf("%032x", time.Now().UnixNano())
 	if len(requestID) != 32 {
 		t.Fatalf("README request ID format produced %d characters: %q", len(requestID), requestID)
+	}
+}
+
+func TestReadmeDemoOffline_ErrorTypeTablesMatchSDKCodes(t *testing.T) {
+	tests := []struct {
+		path string
+		rows []string
+	}{
+		{"../README.md", []string{
+			fmt.Sprintf("| `WaffoError` | `%s` | Invalid public key |", waffoErrors.CodeInvalidPublicKey),
+			fmt.Sprintf("| `WaffoError` | `%s` | Failed to sign request data |", waffoErrors.CodeSigningFailed),
+			fmt.Sprintf("| `WaffoError` | `%s` | Response signature verification failed |", waffoErrors.CodeVerificationFailed),
+			fmt.Sprintf("| `WaffoError` | `%s` | Request serialization failed |", waffoErrors.CodeSerializationFailed),
+			fmt.Sprintf("| `WaffoError` | `%s` | Unexpected SDK error |", waffoErrors.CodeUnexpectedError),
+			fmt.Sprintf("| `WaffoError` | `%s` | Invalid private key |", waffoErrors.CodeInvalidPrivateKey),
+			fmt.Sprintf("| `WaffoUnknownStatusError` | `%s` | Network error, unknown status |", waffoErrors.CodeNetworkError),
+			fmt.Sprintf("| `WaffoUnknownStatusError` | `%s` | Server returned unknown status |", waffoErrors.CodeUnknownStatus),
+		}},
+		{"../README_CN.md", []string{
+			fmt.Sprintf("| `WaffoError` | `%s` | 无效的公钥 |", waffoErrors.CodeInvalidPublicKey),
+			fmt.Sprintf("| `WaffoError` | `%s` | 请求数据签名失败 |", waffoErrors.CodeSigningFailed),
+			fmt.Sprintf("| `WaffoError` | `%s` | 响应签名验证失败 |", waffoErrors.CodeVerificationFailed),
+			fmt.Sprintf("| `WaffoError` | `%s` | 请求序列化失败 |", waffoErrors.CodeSerializationFailed),
+			fmt.Sprintf("| `WaffoError` | `%s` | SDK 未知错误 |", waffoErrors.CodeUnexpectedError),
+			fmt.Sprintf("| `WaffoError` | `%s` | 无效的私钥 |", waffoErrors.CodeInvalidPrivateKey),
+			fmt.Sprintf("| `WaffoUnknownStatusError` | `%s` | 网络错误，状态未知 |", waffoErrors.CodeNetworkError),
+			fmt.Sprintf("| `WaffoUnknownStatusError` | `%s` | 服务端返回未知状态 |", waffoErrors.CodeUnknownStatus),
+		}},
+	}
+
+	for _, tt := range tests {
+		content, err := os.ReadFile(tt.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", tt.path, err)
+		}
+		for _, row := range tt.rows {
+			if !strings.Contains(string(content), row) {
+				t.Errorf("%s is missing SDK error row %q", tt.path, row)
+			}
+		}
+	}
+}
+
+func TestReadmeDemoOffline_CreateExamplesIncludeRequiredUserEmail(t *testing.T) {
+	tests := []struct {
+		path         string
+		startHeading string
+		endHeading   string
+	}{
+		{"../README.md", "### 2. Create a Payment Order", "### 3. Handle Webhook Notifications"},
+		{"../README.md", "#### Create Order", "#### Query Order"},
+		{"../README.md", "#### Create Subscription", "#### Query Subscription"},
+		{"../README_CN.md", "### 2. 创建支付订单", "### 3. 处理 Webhook 通知"},
+		{"../README_CN.md", "#### 创建订单", "#### 查询订单"},
+		{"../README_CN.md", "#### 创建订阅", "#### 查询订阅"},
+	}
+
+	for _, tt := range tests {
+		content, err := os.ReadFile(tt.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", tt.path, err)
+		}
+		start := strings.Index(string(content), tt.startHeading)
+		end := strings.Index(string(content), tt.endHeading)
+		if start < 0 || end <= start {
+			t.Fatalf("find README section %q in %s", tt.startHeading, tt.path)
+		}
+		if !strings.Contains(string(content)[start:end], "UserEmail:") {
+			t.Errorf("%s section %q omits required UserEmail", tt.path, tt.startHeading)
+		}
 	}
 }
 
@@ -73,8 +147,11 @@ func TestReadmeDemoOffline_CoreAPIUsageCompilesAndRuns(t *testing.T) {
 		OrderCurrency:    "USD",
 		OrderDescription: "Premium Plan",
 		NotifyURL:        "https://example.com/webhook",
-		UserInfo:         &order.UserInfo{UserID: "USER-123"},
-		PaymentInfo:      &order.PaymentInfo{ProductName: "ONE_TIME_PAYMENT"},
+		UserInfo: &order.UserInfo{
+			UserID:    "USER-123",
+			UserEmail: "user@example.com",
+		},
+		PaymentInfo: &order.PaymentInfo{ProductName: "ONE_TIME_PAYMENT"},
 	}, nil)
 	if err != nil || !orderCreate.IsSuccess() {
 		t.Fatalf("README order create failed: err=%v, response=%+v", err, orderCreate)
@@ -100,7 +177,10 @@ func TestReadmeDemoOffline_CoreAPIUsageCompilesAndRuns(t *testing.T) {
 			PeriodType:     "MONTHLY",
 			PeriodInterval: "1",
 		},
-		UserInfo:    &subscription.SubscriptionUserInfo{UserID: "USER-123"},
+		UserInfo: &subscription.SubscriptionUserInfo{
+			UserID:    "USER-123",
+			UserEmail: "user@example.com",
+		},
 		PaymentInfo: &subscription.SubscriptionPaymentInfo{ProductName: "SUBSCRIPTION"},
 		NotifyURL:   "https://example.com/webhook",
 	}, nil)
@@ -135,14 +215,24 @@ func TestReadmeDemoOffline_CoreAPIUsageCompilesAndRuns(t *testing.T) {
 // recordingTransport mirrors the README "Custom HTTP Transport" demo shape:
 // a struct implementing net.HttpTransport via Send(ctx, req).
 type recordingTransport struct {
-	privateKey string
-	data       map[string]interface{}
-	requests   []*net.HttpRequest
+	privateKey      string
+	data            map[string]interface{}
+	requests        []*net.HttpRequest
+	responseCode    string
+	responseMessage string
 }
 
 func (t *recordingTransport) Send(ctx context.Context, req *net.HttpRequest) (*net.HttpResponse, error) {
 	t.requests = append(t.requests, req)
-	payload := map[string]interface{}{"code": "0", "msg": "success"}
+	code := t.responseCode
+	if code == "" {
+		code = "0"
+	}
+	message := t.responseMessage
+	if message == "" {
+		message = "success"
+	}
+	payload := map[string]interface{}{"code": code, "msg": message}
 	if t.data != nil {
 		payload["data"] = t.data
 	}
@@ -159,6 +249,68 @@ func (t *recordingTransport) Send(ctx context.Context, req *net.HttpRequest) (*n
 		Headers:    map[string]string{"X-SIGNATURE": signature},
 		Body:       body,
 	}, nil
+}
+
+func TestReadmeDemoOffline_BusinessErrorRemainsAPIResponse(t *testing.T) {
+	client, transport := newOfflineDemoClient(t, nil)
+	transport.responseCode = "A0003"
+	transport.responseMessage = "Parameter validation failed ( userEmail )"
+
+	resp, err := client.Order().Create(context.Background(), &order.CreateOrderParams{
+		PaymentRequestID: "REQ-ERROR",
+		MerchantOrderID:  "ORDER-ERROR",
+		OrderAmount:      "99.99",
+		OrderCurrency:    "USD",
+		OrderDescription: "Error handling example",
+		NotifyURL:        "https://example.com/webhook",
+		UserInfo: &order.UserInfo{
+			UserID:    "USER-123",
+			UserEmail: "user@example.com",
+		},
+		PaymentInfo: &order.PaymentInfo{ProductName: "ONE_TIME_PAYMENT"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("business error returned Go error: %v", err)
+	}
+	if resp == nil || resp.IsSuccess() {
+		t.Fatalf("expected unsuccessful API response, got %+v", resp)
+	}
+	if resp.GetCode() != "A0003" || resp.GetMessage() != transport.responseMessage {
+		t.Fatalf("business error was not preserved: code=%s, msg=%s", resp.GetCode(), resp.GetMessage())
+	}
+}
+
+func TestReadmeDemoOffline_ResponseSignatureFailureReturnsS0004(t *testing.T) {
+	client, transport := newOfflineDemoClient(t, nil)
+	otherKeyPair, err := utils.GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("generate mismatched response key pair: %v", err)
+	}
+	transport.privateKey = otherKeyPair.PrivateKey
+
+	resp, err := client.Order().Create(context.Background(), &order.CreateOrderParams{
+		PaymentRequestID: "REQ-SIGNATURE",
+		MerchantOrderID:  "ORDER-SIGNATURE",
+		OrderAmount:      "99.99",
+		OrderCurrency:    "USD",
+		OrderDescription: "Signature handling example",
+		NotifyURL:        "https://example.com/webhook",
+		UserInfo: &order.UserInfo{
+			UserID:    "USER-123",
+			UserEmail: "user@example.com",
+		},
+		PaymentInfo: &order.PaymentInfo{ProductName: "ONE_TIME_PAYMENT"},
+	}, nil)
+	if resp != nil {
+		t.Fatalf("expected no API response after signature failure, got %+v", resp)
+	}
+	waffoErr, ok := err.(*waffoErrors.WaffoError)
+	if !ok {
+		t.Fatalf("expected WaffoError, got %T: %v", err, err)
+	}
+	if waffoErr.ErrorCode != waffoErrors.CodeVerificationFailed {
+		t.Fatalf("expected %s, got %s", waffoErrors.CodeVerificationFailed, waffoErr.ErrorCode)
+	}
 }
 
 func (t *recordingTransport) sentBody(tb testing.TB) map[string]interface{} {
@@ -300,5 +452,36 @@ func TestReadmeDemoOffline_UpdateSubscription(t *testing.T) {
 	topupInfo, ok := body["topupInfo"].(map[string]interface{})
 	if !ok || topupInfo["topupRequest"] != "mimo-topup-001" || topupInfo["topupAmount"] != "30.00" {
 		t.Fatalf("topupInfo not sent as documented: %v", body["topupInfo"])
+	}
+}
+
+func TestReadmeDemoOffline_CustomEvent(t *testing.T) {
+	keys, err := utils.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.NewConfigBuilder().APIKey("readme-test").PrivateKey(keys.PrivateKey).
+		WaffoPublicKey(keys.PublicKey).Environment(config.Sandbox).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var received map[string]interface{}
+	handler, err := core.NewWebhookHandler(cfg).OnEvent("EXAMPLE_CUSTOM_NOTIFICATION", func(raw json.RawMessage) error {
+		return json.Unmarshal(raw, &received)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := `{"eventType":"EXAMPLE_CUSTOM_NOTIFICATION","result":{"id":"demo"}}`
+	signature, err := utils.Sign(body, keys.PrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := handler.HandleWebhook(body, signature)
+	if !result.Success || received["eventType"] != "EXAMPLE_CUSTOM_NOTIFICATION" {
+		t.Fatalf("custom event example failed: result=%+v received=%v", result, received)
+	}
+	if result.ResponseBody != `{"message":"success"}` || !utils.Verify(result.ResponseBody, result.ResponseSignature, keys.PublicKey) {
+		t.Fatal("invalid signed example response")
 	}
 }

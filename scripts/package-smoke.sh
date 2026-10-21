@@ -4,24 +4,29 @@ set -euo pipefail
 PACKAGE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SMOKE_ROOT="$(mktemp -d)"
 trap 'rm -rf "$SMOKE_ROOT"' EXIT
+MODULE_PATH="$(cd "$PACKAGE_ROOT" && go list -m -f '{{.Path}}')"
+MODULE_VERSION="v0.0.0"
+if [[ "$MODULE_PATH" =~ /v([0-9]+)$ ]] && [ "${BASH_REMATCH[1]}" -ge 2 ]; then
+  MODULE_VERSION="v${BASH_REMATCH[1]}.0.0"
+fi
 
 cat > "$SMOKE_ROOT/go.mod" <<EOF
 module waffo-go-smoke
 
 go 1.20
 
-require github.com/waffo-com/waffo-sdk/packages/waffo-go v0.0.0
+require $MODULE_PATH $MODULE_VERSION
 
-replace github.com/waffo-com/waffo-sdk/packages/waffo-go => $PACKAGE_ROOT
+replace $MODULE_PATH => $PACKAGE_ROOT
 EOF
 
-cat > "$SMOKE_ROOT/main.go" <<'GO'
+cat > "$SMOKE_ROOT/main.go" <<GO
 package main
 
 import (
 	"fmt"
 
-	"github.com/waffo-com/waffo-sdk/packages/waffo-go/config"
+	"$MODULE_PATH/config"
 )
 
 func main() {
