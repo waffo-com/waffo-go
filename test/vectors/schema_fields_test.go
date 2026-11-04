@@ -128,6 +128,7 @@ var goTypeRegistry = map[string]reflect.Type{
 	// Wallet
 	"wallet.WalletInquiryParams": reflect.TypeOf(wallet.WalletInquiryParams{}),
 	"wallet.WalletInquiryData":   reflect.TypeOf(wallet.WalletInquiryData{}),
+	"wallet.PaymentOption":       reflect.TypeOf(wallet.PaymentOption{}),
 }
 
 // Required OpenAPI request fields that are intentionally omitted from the public

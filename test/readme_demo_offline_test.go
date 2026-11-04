@@ -24,6 +24,7 @@ import (
 	"github.com/waffo-com/waffo-go/v2/types/order"
 	"github.com/waffo-com/waffo-go/v2/types/refund"
 	"github.com/waffo-com/waffo-go/v2/types/subscription"
+	"github.com/waffo-com/waffo-go/v2/types/wallet"
 	"github.com/waffo-com/waffo-go/v2/utils"
 )
 
@@ -483,5 +484,37 @@ func TestReadmeDemoOffline_CustomEvent(t *testing.T) {
 	}
 	if result.ResponseBody != `{"message":"success"}` || !utils.Verify(result.ResponseBody, result.ResponseSignature, keys.PublicKey) {
 		t.Fatal("invalid signed example response")
+	}
+}
+
+func TestReadmeDemoOffline_WalletInquiry(t *testing.T) {
+	client, transport := newOfflineDemoClient(t, map[string]interface{}{
+		"paymentOptions": []interface{}{
+			map[string]interface{}{"network": "eip155:8453", "asset": "base-token", "payTo": "base-address", "decimals": 6},
+			map[string]interface{}{"network": "eip155:4217", "asset": "tempo-token", "payTo": "tempo-address", "decimals": 0},
+		},
+	})
+	resp, err := client.Wallet().Inquiry(context.Background(), &wallet.WalletInquiryParams{
+		PaymentRequestID: "wallet-demo", OrderCurrency: "USDC",
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.IsSuccess() || resp.GetData() == nil {
+		t.Fatalf("wallet-demo: %+v", resp)
+	}
+	if len(resp.GetData().PaymentOptions) != 2 {
+		t.Fatalf("options lost: %+v", resp.GetData())
+	}
+	for _, option := range resp.GetData().PaymentOptions {
+		if option.Network == "" || option.Asset == "" || option.PayTo == "" || option.Decimals == nil {
+			t.Fatalf("fixture fields lost: %+v", option)
+		}
+	}
+	if *resp.GetData().PaymentOptions[1].Decimals != 0 {
+		t.Fatal("zero decimals changed")
+	}
+	if transport.sentBody(t)["merchantInfo"].(map[string]interface{})["merchantId"] != "your-merchant-id" {
+		t.Fatal("merchant not injected")
 	}
 }

@@ -18,7 +18,13 @@ type WalletInquiryParams struct {
 
 // WalletInquiryData represents the response data for a wallet inquiry.
 type WalletInquiryData struct {
-	Network string `json:"network,omitempty"`
-	Asset   string `json:"asset,omitempty"`
-	PayTo   string `json:"payTo,omitempty"`
+	PaymentOptions []PaymentOption `json:"paymentOptions,omitempty"`
+}
+
+// PaymentOption is one network's on-chain receiving option.
+type PaymentOption struct {
+	Network  string `json:"network,omitempty"`
+	Asset    string `json:"asset,omitempty"`
+	PayTo    string `json:"payTo,omitempty"`
+	Decimals *int32 `json:"decimals,omitempty"`
 }

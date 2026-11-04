@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README_CN.md @ commit 9405bd4 -->
+<!-- Synced with waffo-sdk/README_CN.md @ commit ead2623 -->
 
 [English](README.md) | **中文**
 
@@ -628,7 +628,7 @@ transport := net.NewDefaultHttpTransport()
 <!-- sdk-sync:start:%E9%92%B1%E5%8C%85%E5%9C%B0%E5%9D%80%E6%9F%A5%E8%AF%A2%E7%A4%BA%E4%BE%8B -->
 #### 钱包地址查询示例 (x402)
 
-查询 x402 支付的链上稳定币收款地址。响应返回目标网络、链上代币合约地址，以及 Waffo 平台收款钱包地址。第一阶段支持 `USDC`。
+通过 `paymentOptions` 查询 x402 支付的全部链上收款选项。每项包含网络、代币合约、收款地址及可选的代币精度 decimals。
 
 ```go
 import "github.com/waffo-com/waffo-go/v2/types/wallet"
@@ -643,10 +643,14 @@ if err != nil {
     log.Fatal(err)
 }
 if resp.IsSuccess() {
-    data := resp.GetData()
-    fmt.Printf("Network: %s\n", data.Network) // CAIP-2 网络 ID，例如 eip155:8453（Base 主网）
-    fmt.Printf("Asset: %s\n", data.Asset)      // 链上代币合约地址
-    fmt.Printf("Pay to: %s\n", data.PayTo)     // Waffo 平台收款钱包地址
+    if data := resp.GetData(); data != nil {
+        for _, option := range data.PaymentOptions {
+            fmt.Printf("Network: %s\nAsset: %s\nPay to: %s\n", option.Network, option.Asset, option.PayTo)
+            if option.Decimals != nil {
+                fmt.Printf("Decimals: %d\n", *option.Decimals)
+            }
+        }
+    }
 } else {
     fmt.Printf("钱包地址查询失败: %s %s\n", resp.GetCode(), resp.GetMessage())
 }
@@ -656,9 +660,15 @@ if resp.IsSuccess() {
 
 | 字段 | 说明 |
 |------|------|
-| `network` | CAIP-2 网络 ID（第一阶段：`eip155:8453`，Base 主网） |
-| `asset` | 该网络 + 币种对应的链上代币合约地址 |
-| `payTo` | Waffo 平台收款钱包地址（向此地址付款） |
+| `paymentOptions` | 可选收款选项数组，可能为空、缺失或 null |
+| `paymentOptions[].network` | 可选 CAIP-2 网络 ID，例如 `eip155:8453` |
+| `paymentOptions[].asset` | 可选链上代币合约地址 |
+| `paymentOptions[].payTo` | 可选 Waffo 平台收款钱包地址 |
+| `paymentOptions[].decimals` | 可选 int32 代币精度；缺失/null 与 `0` 不同 |
+
+SDK 保留所有选项，请显式选择目标网络，不假定第一项就是目标网络。所有新字段均可选；数组为空、缺失或 null 时没有可用收款选项。计算最小单位金额时，不能将缺失/null 的 decimals 当成零。响应仅公开 `paymentOptions`；顶层 `network`、`asset`、`payTo` 及其类型化访问方法已移除。这是有意的 SDK 公开 API 变更。本次为 Java/Node 3.3.0、Go 2.3.0、Python 0.7.0b0、PHP 0.5.0 准备；Go 公开导入保持 `github.com/waffo-com/waffo-go/v2`。这些小版本号有意包含此处说明的 Wallet 源码破坏性变更，不承诺该响应模型向后兼容。
+
+Go 调用方需将旧字段引用、带字段名和位置初始化迁移到 `wallet.WalletInquiryData{PaymentOptions: []wallet.PaymentOption{...}}`。由于字段为 slice，`WalletInquiryData` 不再可比较，`==`/`!=` 和作为 map key 的代码也无法编译。请按所需选项字段显式比较。这些属于公开 API 破坏性变更，与观测到的接口流量无关。
 <!-- sdk-sync:end:%E9%92%B1%E5%8C%85%E5%9C%B0%E5%9D%80%E6%9F%A5%E8%AF%A2%E7%A4%BA%E4%BE%8B -->
 
 ## Webhook 处理

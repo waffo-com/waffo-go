@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-11-04
+
+### Changed
+
+- **Versioning exception:** this minor release intentionally includes the source-breaking Wallet response changes below. It does not provide backward compatibility for the old response model.
+
+- Public imports remain `github.com/waffo-com/waffo-go/v2`. The Wallet model changes below still require source migration when upgrading within v2.
+- `wallet.WalletInquiryData` now contains only `PaymentOptions []wallet.PaymentOption`; remove old `Network`, `Asset`, `PayTo` references and migrate keyed/positional literals. The slice makes the response non-comparable, so value `==`/`!=` and use as map keys no longer compile.
+
+### Added
+
+- Preserve every option's network, asset and receiving address. `Decimals *int32` distinguishes explicit zero from missing/null; no first-option fallback. Schema vectors, offline examples, response parsing and local HTTP contract E2E cover the new contract.
+
+
 ## [2.2.0] - 2026-10-21
 
 ### Added

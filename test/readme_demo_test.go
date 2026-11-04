@@ -768,12 +768,22 @@ func TestReadmeDemo_WalletInquiry(t *testing.T) {
 	if data == nil {
 		t.Fatalf("Wallet inquiry should return data: paymentRequestID=%s", paymentRequestID)
 	}
-	if strings.TrimSpace(data.Network) == "" || strings.TrimSpace(data.Asset) == "" || strings.TrimSpace(data.PayTo) == "" {
-		t.Fatalf("Wallet inquiry should return network, asset, and payTo: paymentRequestID=%s, data=%+v",
-			paymentRequestID, data)
+	if len(data.PaymentOptions) == 0 {
+		t.Fatalf("Wallet inquiry should return paymentOptions: paymentRequestID=%s, code=%s, msg=%s, data=%+v",
+			paymentRequestID, resp.GetCode(), resp.GetMessage(), data)
 	}
-	t.Logf("Wallet inquiry succeeded: paymentRequestID=%s, network=%s, asset=%s, payTo=%s",
-		paymentRequestID, data.Network, data.Asset, data.PayTo)
+	for _, option := range data.PaymentOptions {
+		if strings.TrimSpace(option.Network) == "" || strings.TrimSpace(option.Asset) == "" || strings.TrimSpace(option.PayTo) == "" {
+			t.Fatalf("Configured wallet option should return network, asset, and payTo: paymentRequestID=%s, code=%s, msg=%s, data=%+v",
+				paymentRequestID, resp.GetCode(), resp.GetMessage(), data)
+		}
+		var decimals interface{} = "(absent)"
+		if option.Decimals != nil {
+			decimals = *option.Decimals
+		}
+		t.Logf("Wallet inquiry succeeded: paymentRequestID=%s, network=%s, asset=%s, payTo=%s, decimals=%v",
+			paymentRequestID, option.Network, option.Asset, option.PayTo, decimals)
+	}
 }
 
 // ==================== RSA Key Generation ====================

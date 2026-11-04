@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README.md @ commit 9405bd4 -->
+<!-- Synced with waffo-sdk/README.md @ commit ead2623 -->
 
 **English** | [中文](README_CN.md)
 
@@ -584,9 +584,10 @@ if resp.IsSuccess() {
 ```
 <!-- sdk-sync:end:Query%20Available%20Payment%20Methods -->
 
+<!-- sdk-sync:start:Wallet%20Address%20Inquiry%20(x402) -->
 ### Wallet Address Inquiry (x402)
 
-Inquire the on-chain stablecoin receiving address for an x402 payment. The response returns the target network, the on-chain token contract, and the Waffo platform wallet address to send funds to. Phase 1 supports `USDC`.
+Inquire all on-chain receiving options for an x402 payment in `paymentOptions`. Each option contains its network, token contract, receiving address and optional token decimals.
 
 ```go
 import "github.com/waffo-com/waffo-go/v2/types/wallet"
@@ -601,10 +602,14 @@ if err != nil {
     log.Fatal(err)
 }
 if resp.IsSuccess() {
-    data := resp.GetData()
-    fmt.Printf("Network: %s\n", data.Network) // CAIP-2 network id, e.g. eip155:8453 (Base mainnet)
-    fmt.Printf("Asset: %s\n", data.Asset)      // on-chain token contract address
-    fmt.Printf("Pay to: %s\n", data.PayTo)     // Waffo platform receiving wallet address
+    if data := resp.GetData(); data != nil {
+        for _, option := range data.PaymentOptions {
+            fmt.Printf("Network: %s\nAsset: %s\nPay to: %s\n", option.Network, option.Asset, option.PayTo)
+            if option.Decimals != nil {
+                fmt.Printf("Decimals: %d\n", *option.Decimals)
+            }
+        }
+    }
 } else {
     fmt.Printf("Wallet inquiry failed: %s %s\n", resp.GetCode(), resp.GetMessage())
 }
@@ -614,9 +619,16 @@ if resp.IsSuccess() {
 
 | Field | Description |
 |-------|-------------|
-| `network` | CAIP-2 network id (Phase 1: `eip155:8453`, Base mainnet) |
-| `asset` | On-chain token contract address for the network + currency |
-| `payTo` | Waffo platform receiving wallet address (send funds here) |
+| `paymentOptions` | Optional array of receiving options; it may be empty, missing or null |
+| `paymentOptions[].network` | Optional CAIP-2 network id, e.g. `eip155:8453` |
+| `paymentOptions[].asset` | Optional on-chain token contract address |
+| `paymentOptions[].payTo` | Optional Waffo platform receiving wallet address |
+| `paymentOptions[].decimals` | Optional int32 token precision; missing/null differs from `0` |
+
+The SDK preserves every option. Select the network explicitly; do not assume the first option is the desired one. All new fields are optional. Empty/missing/null options yield no receiving option. Missing/null decimals must not be treated as zero when calculating atomic units. The response exposes only `paymentOptions`; top-level `network`, `asset`, `payTo` and their typed accessors have been removed. This intentionally changes the public SDK API. These changes are prepared for Java/Node 3.3.0, Go 2.3.0, Python 0.7.0b0 and PHP 0.5.0. Go public imports remain `github.com/waffo-com/waffo-go/v2`. These minor version numbers intentionally include the source-breaking Wallet changes described here; they do not promise backward compatibility for this response model.
+
+Go callers must migrate old field references and keyed/positional literals to `wallet.WalletInquiryData{PaymentOptions: []wallet.PaymentOption{...}}`. The slice also makes `WalletInquiryData` non-comparable: `==`/`!=` and use as map keys no longer compile. Compare the required option fields explicitly. These are breaking public API changes regardless of observed endpoint traffic.
+<!-- sdk-sync:end:Wallet%20Address%20Inquiry%20(x402) -->
 
 ## Webhook Handling
 
