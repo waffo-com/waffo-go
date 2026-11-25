@@ -14,6 +14,7 @@ type SubscriptionInfo struct {
 	MerchantRequest     string `json:"merchantRequest,omitempty"`
 	SubscriptionID      string `json:"subscriptionId,omitempty"`
 	Period              string `json:"period,omitempty"`
+	SubscriptionEvent   string `json:"subscriptionEvent,omitempty"`
 }
 
 // SubscriptionPromotionInfo represents promotion/coupon information attached to a subscription.
@@ -55,8 +56,9 @@ type CreateSubscriptionParams struct {
 	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
 	AcqProduct interface{} `json:"acqProduct,omitempty"`
 	// Deprecated: Legacy field retained for source compatibility; not in the current OpenAPI contract.
-	AcqAgreements []interface{}     `json:"acqAgreements,omitempty"`
-	ExtraParams   types.ExtraParams `json:"extraParams,omitempty"`
+	AcqAgreements    []interface{}     `json:"acqAgreements,omitempty"`
+	ExtraParams      types.ExtraParams `json:"extraParams,omitempty"`
+	PaymentTokenData string            `json:"paymentTokenData,omitempty"`
 }
 
 // ScheduledAmount represents a scheduled amount for a specific subscription period.
@@ -155,6 +157,10 @@ type SubscriptionPaymentInfo struct {
 	PayMethodResponse        string `json:"payMethodResponse,omitempty"`
 	CashierLanguage          string `json:"cashierLanguage,omitempty"`
 	CashierAppearance        string `json:"cashierAppearance,omitempty"`
+	CashierLogoID            string `json:"cashierLogoId,omitempty"`
+	UserPaymentAccessToken   string `json:"userPaymentAccessToken,omitempty"`
+	ReceiptTemplateID        string `json:"receiptTemplateId,omitempty"`
+	PayMethodCountry         string `json:"payMethodCountry,omitempty"`
 }
 
 // SubscriptionRiskData represents risk control data for subscriptions.
@@ -244,6 +250,7 @@ type InquirySubscriptionData struct {
 	PaymentDetails            []PaymentDetail           `json:"paymentDetails,omitempty"`
 	GoodsInfo                 *SubscriptionGoodsInfo    `json:"goodsInfo,omitempty"`
 	AddressInfo               *SubscriptionAddressInfo  `json:"addressInfo,omitempty"`
+	ScheduledCancelAt         string                    `json:"scheduledCancelAt,omitempty"`
 }
 
 // PaymentDetail represents one subscription payment detail returned by inquiry.
@@ -254,14 +261,18 @@ type PaymentDetail struct {
 	OrderStatus      string `json:"orderStatus,omitempty"`
 	OrderUpdatedAt   string `json:"orderUpdatedAt,omitempty"`
 	Period           string `json:"period,omitempty"`
+	// Pointers preserve comparability for existing callers that use PaymentDetail as a map key.
+	TopupDetails     *[]SubscriptionTopupDetail     `json:"topupDetails,omitempty"`
+	RepaymentDetails *[]SubscriptionRepaymentDetail `json:"repaymentDetails,omitempty"`
 }
 
 // CancelSubscriptionParams represents the parameters for canceling a subscription.
 type CancelSubscriptionParams struct {
-	SubscriptionID string            `json:"subscriptionId"`
-	MerchantID     string            `json:"merchantId,omitempty"`
-	RequestedAt    string            `json:"requestedAt,omitempty"`
-	ExtraParams    types.ExtraParams `json:"extraParams,omitempty"`
+	SubscriptionID    string            `json:"subscriptionId"`
+	MerchantID        string            `json:"merchantId,omitempty"`
+	RequestedAt       string            `json:"requestedAt,omitempty"`
+	ExtraParams       types.ExtraParams `json:"extraParams,omitempty"`
+	ScheduledCancelAt string            `json:"scheduledCancelAt,omitempty"`
 }
 
 // CancelSubscriptionData represents the response data for subscription cancellation.
@@ -270,6 +281,7 @@ type CancelSubscriptionData struct {
 	SubscriptionRequest    string `json:"subscriptionRequest,omitempty"`
 	SubscriptionID         string `json:"subscriptionId,omitempty"`
 	OrderStatus            string `json:"orderStatus,omitempty"`
+	ScheduledCancelAt      string `json:"scheduledCancelAt,omitempty"`
 }
 
 // ManageSubscriptionParams represents the parameters for managing a subscription.
@@ -439,4 +451,22 @@ type ChangeInquiryData struct {
 	GoodsInfo                 *SubscriptionGoodsInfo          `json:"goodsInfo,omitempty"`
 	AddressInfo               *SubscriptionAddressInfo        `json:"addressInfo,omitempty"`
 	PaymentInfo               *SubscriptionPaymentInfo        `json:"paymentInfo,omitempty"`
+}
+
+// SubscriptionTopupDetail represents a seat top-up accepted for a subscription period.
+type SubscriptionTopupDetail struct {
+	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
+	TopupRequest     string `json:"topupRequest,omitempty"`
+	TopupAmount      string `json:"topupAmount,omitempty"`
+	OrderCurrency    string `json:"orderCurrency,omitempty"`
+	OrderStatus      string `json:"orderStatus,omitempty"`
+}
+
+// SubscriptionRepaymentDetail represents a repayment order for a subscription period.
+type SubscriptionRepaymentDetail struct {
+	AcquiringOrderID string `json:"acquiringOrderId,omitempty"`
+	RequestID        string `json:"requestId,omitempty"`
+	RepaymentAmount  string `json:"repaymentAmount,omitempty"`
+	OrderCurrency    string `json:"orderCurrency,omitempty"`
+	OrderStatus      string `json:"orderStatus,omitempty"`
 }

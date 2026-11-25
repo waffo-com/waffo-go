@@ -43,6 +43,7 @@ type CreateOrderParams struct {
 	X402Info      *X402Info         `json:"x402Info,omitempty"`
 	PromotionInfo *PromotionInfo    `json:"promotionInfo,omitempty"`
 	ExtraParams   types.ExtraParams `json:"extraParams,omitempty"`
+	MPPInfo       *MPPInfo          `json:"mppInfo,omitempty"`
 }
 
 // BrandInfo represents cashier brand display information.
@@ -165,6 +166,8 @@ type PaymentInfo struct {
 	UserPaymentAccessToken   string `json:"userPaymentAccessToken,omitempty"`
 	CaptureMode              string `json:"captureMode,omitempty"`
 	MerchantInitiatedMode    string `json:"merchantInitiatedMode,omitempty"`
+	ReceiptTemplateID        string `json:"receiptTemplateId,omitempty"`
+	SetupFutureUsage         *bool  `json:"setupFutureUsage,omitempty"`
 }
 
 // GoodsInfo represents goods information.
@@ -181,8 +184,13 @@ type GoodsInfo struct {
 
 // AddressInfo represents address information.
 type AddressInfo struct {
-	ShippingAddress *Address `json:"shippingAddress,omitempty"`
-	BillingAddress  *Address `json:"billingAddress,omitempty"`
+	ShippingAddress    *Address `json:"shippingAddress,omitempty"`
+	BillingAddress     *Address `json:"billingAddress,omitempty"`
+	Address            string   `json:"address,omitempty"`
+	City               string   `json:"city,omitempty"`
+	Region             string   `json:"region,omitempty"`
+	Postcode           string   `json:"postcode,omitempty"`
+	AddressCountryCode string   `json:"addressCountryCode,omitempty"`
 }
 
 // Address represents a physical address.
@@ -203,6 +211,7 @@ type CreateOrderData struct {
 	OrderStatus      string    `json:"orderStatus,omitempty"`
 	OrderAction      string    `json:"orderAction,omitempty"`
 	X402Info         *X402Info `json:"x402Info,omitempty"`
+	MPPInfo          *MPPInfo  `json:"mppInfo,omitempty"`
 }
 
 // OrderAction represents the action required for order processing.
@@ -276,6 +285,7 @@ type InquiryOrderData struct {
 	UserCurrency      string                         `json:"userCurrency,omitempty"`
 	X402Info          *X402Info                      `json:"x402Info,omitempty"`
 	SubscriptionInfo  *subscription.SubscriptionInfo `json:"subscriptionInfo,omitempty"`
+	MPPInfo           *MPPInfo                       `json:"mppInfo,omitempty"`
 }
 
 // CancelOrderParams represents the parameters for canceling an order.
@@ -366,4 +376,11 @@ type RefundUserBankInfo struct {
 	BankName      string `json:"bankName,omitempty"`
 	BankCity      string `json:"bankCity,omitempty"`
 	BankBranch    string `json:"bankBranch,omitempty"`
+}
+
+// MPPInfo contains MPP stablecoin payment details.
+type MPPInfo struct {
+	MPPRequest          *bool  `json:"mppRequest,omitempty"`
+	AuthorizationHeader string `json:"authorizationHeader,omitempty"`
+	MPPResponse         string `json:"mppResponse,omitempty"`
 }

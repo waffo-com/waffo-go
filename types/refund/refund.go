@@ -51,4 +51,5 @@ type InquiryRefundData struct {
 	UserInfo               *RefundUserInfo                `json:"userInfo,omitempty"`
 	RefundCompletedAt      string                         `json:"refundCompletedAt,omitempty"`
 	RefundSource           string                         `json:"refundSource,omitempty"`
+	MerchantID             string                         `json:"merchantId,omitempty"`
 }

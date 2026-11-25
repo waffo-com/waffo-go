@@ -137,6 +137,53 @@ func TestReadmeDemoOffline_CreateExamplesIncludeRequiredUserEmail(t *testing.T) 
 	}
 }
 
+func TestReadmeDemoOffline_PublicInquiryFields(t *testing.T) {
+	client, transport := newOfflineDemoClient(t, map[string]interface{}{
+		"subscriptionInfo": map[string]interface{}{"merchantRequest": "sub-req", "subscriptionEvent": "PERIOD_CHARGE"},
+		"paymentInfo":      map[string]interface{}{"setupFutureUsage": false},
+	})
+	ctx := context.Background()
+	inquiry, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{AcquiringOrderID: "order-id"}, nil)
+	if err != nil || !inquiry.IsSuccess() {
+		t.Fatalf("order inquiry failed: err=%v response=%+v", err, inquiry)
+	}
+	data := inquiry.GetData()
+	if data.SubscriptionInfo == nil || data.SubscriptionInfo.MerchantRequest != "sub-req" ||
+		data.SubscriptionInfo.SubscriptionEvent != "PERIOD_CHARGE" {
+		t.Fatalf("subscription info not decoded: %+v", data.SubscriptionInfo)
+	}
+	if data.PaymentInfo == nil || data.PaymentInfo.SetupFutureUsage == nil || *data.PaymentInfo.SetupFutureUsage {
+		t.Fatalf("setupFutureUsage false not decoded: %+v", data.PaymentInfo)
+	}
+
+	transport.data = map[string]interface{}{
+		"paymentDetails": []map[string]interface{}{{"acquiringOrderId": "legacy-order"}, {
+			"topupDetails":     []map[string]interface{}{{"topupRequest": "topup"}},
+			"repaymentDetails": []map[string]interface{}{{"requestId": "repay"}},
+		}},
+	}
+	subscriptionInquiry, err := client.Subscription().Inquiry(ctx, &subscription.InquirySubscriptionParams{
+		SubscriptionID: "sub", PaymentDetails: 1,
+	}, nil)
+	if err != nil || !subscriptionInquiry.IsSuccess() {
+		t.Fatalf("subscription inquiry failed: err=%v response=%+v", err, subscriptionInquiry)
+	}
+	periods := subscriptionInquiry.GetData().PaymentDetails
+	if len(periods) != 2 {
+		t.Fatalf("expected both subscription payment details, got %+v", periods)
+	}
+	legacyPeriods := map[subscription.PaymentDetail]bool{{AcquiringOrderID: "legacy-order"}: true}
+	if !legacyPeriods[periods[0]] {
+		t.Fatalf("legacy subscription payment detail changed: %+v", periods[0])
+	}
+	topupDetails, repaymentDetails := periods[1].TopupDetails, periods[1].RepaymentDetails
+	if topupDetails == nil || repaymentDetails == nil || len(*topupDetails) != 1 || len(*repaymentDetails) != 1 ||
+		(*topupDetails)[0].TopupRequest != "topup" || (*repaymentDetails)[0].RequestID != "repay" {
+		t.Fatalf("subscription payment details not decoded: %+v", periods)
+	}
+
+}
+
 func TestReadmeDemoOffline_CoreAPIUsageCompilesAndRuns(t *testing.T) {
 	client, transport := newOfflineDemoClient(t, nil)
 	ctx := context.Background()

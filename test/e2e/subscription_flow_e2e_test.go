@@ -6,6 +6,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
@@ -153,7 +154,8 @@ func TestSubscriptionFlow_UpdateWithTopup(t *testing.T) {
 	createParams := &subscription.CreateSubscriptionParams{
 		SubscriptionRequest:    subscriptionRequest,
 		MerchantSubscriptionID: fmt.Sprintf("E2E_TOPUP_%d", now.UnixMilli()),
-		Currency:               "USD",
+		Currency:               "HKD",
+		UserCurrency:           "HKD",
 		Amount:                 "99.00",
 		ProductInfo: &subscription.ProductInfo{
 			Description:    "E2E subscription top-up",
@@ -165,9 +167,11 @@ func TestSubscriptionFlow_UpdateWithTopup(t *testing.T) {
 			MerchantID: testConfig.MerchantID,
 		},
 		UserInfo: &subscription.SubscriptionUserInfo{
-			UserID:       "e2e_topup_user",
-			UserEmail:    "e2e-topup@waffo.co",
-			UserTerminal: "WEB",
+			UserID:        subscriptionRequest,
+			UserEmail:     subscriptionRequest + "@test.com",
+			UserTerminal:  "WEB",
+			UserFirstName: "E2E",
+			UserLastName:  "Subscription",
 		},
 		GoodsInfo: &subscription.SubscriptionGoodsInfo{
 			GoodsID:       "E2E_TOPUP_GOODS",
@@ -176,11 +180,25 @@ func TestSubscriptionFlow_UpdateWithTopup(t *testing.T) {
 			GoodsURL:      "https://example.com/subscription/topup",
 			GoodsQuantity: 1,
 		},
+		AddressInfo: &subscription.SubscriptionAddressInfo{
+			ShippingAddress: &subscription.SubscriptionAddress{
+				Country: "HKG", City: "Hong Kong", Address1: "1 Test Street", PostalCode: "000000",
+			},
+			BillingAddress: &subscription.SubscriptionAddress{
+				Country: "HKG", City: "Hong Kong", Address1: "2 Test Street", PostalCode: "000000",
+			},
+		},
 		PaymentInfo: &subscription.SubscriptionPaymentInfo{
 			ProductName:   "SUBSCRIPTION",
 			PayMethodType: "CREDITCARD",
 		},
+		RiskData: &subscription.SubscriptionRiskData{
+			DeviceType:    "WEB",
+			DeviceId:      subscriptionRequest + "_device",
+			DeviceTokenId: subscriptionRequest + "_token",
+		},
 		RequestedAt:               now.UTC().Format("2006-01-02T15:04:05.000Z"),
+		OrderExpiredAt:            now.Add(30 * time.Minute).UTC().Format(time.RFC3339),
 		NotifyURL:                 "https://httpbin.org/post",
 		SuccessRedirectURL:        TestURLs.Success,
 		FailedRedirectURL:         TestURLs.Failed,
@@ -219,21 +237,24 @@ func TestSubscriptionFlow_UpdateWithTopup(t *testing.T) {
 			subscriptionRequest, createData.SubscriptionID)
 	}
 	base.SetTimeout(60000)
-	if !base.CompleteCheckout(t, checkoutURL, "subscription_topup_activation", SubscriptionCheckoutCard()) {
-		t.Fatalf("Subscription checkout did not complete: subscriptionRequest=%s, subscriptionID=%s, currentURL=%s",
+	card := SubscriptionCheckoutCard()
+	card.ExpiryMonth = TestCard.ExpiryMonth
+	card.Holder = TestCard.Holder
+	if !base.CompleteCheckout(t, checkoutURL, "subscription_topup_activation", card) {
+		t.Logf("Subscription checkout did not show a terminal page; checking signed inquiry: subscriptionRequest=%s, subscriptionID=%s, currentURL=%s",
 			subscriptionRequest, createData.SubscriptionID, base.Page.URL())
 	}
 	requireSubscriptionStatus(t, subscriptionRequest, "ACTIVE", 20, 3*time.Second)
 
+	const topupAmount = "1.00"
 	topupRequest := fmt.Sprintf("e2e-topup-%d", time.Now().UnixMilli())
 	updateResp, err := testWaffo.Subscription().Update(context.Background(), &subscription.UpdateSubscriptionParams{
 		SubscriptionID: createData.SubscriptionID,
 		Amount:         "99.00",
 		TopupInfo: &subscription.SubscriptionUpdateTopupInfo{
-			TopupRequest:   topupRequest,
-			TopupAmount:    "1.00",
-			Description:    "E2E seat add-on",
-			OrderExpiredAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+			TopupRequest: topupRequest,
+			TopupAmount:  topupAmount,
+			Description:  "E2E seat add-on",
 		},
 	}, nil)
 	if err != nil {
@@ -258,13 +279,26 @@ func TestSubscriptionFlow_UpdateWithTopup(t *testing.T) {
 		topupData.AcquiringOrderID, topupData.TopupAmount, topupData.TopupStatus)
 
 	if topupData.TopupStatus == "AUTHORIZATION_REQUIRED" {
+		defer func() {
+			inquiry, inquiryErr := testWaffo.Order().Inquiry(context.Background(), &order.InquiryOrderParams{
+				AcquiringOrderID: topupData.AcquiringOrderID,
+			}, nil)
+			if inquiryErr == nil && inquiry != nil && inquiry.IsSuccess() && inquiry.GetData() != nil &&
+				inquiry.GetData().OrderStatus == "AUTHORIZATION_REQUIRED" {
+				canceled, cancelErr := testWaffo.Order().Cancel(context.Background(), &order.CancelOrderParams{
+					AcquiringOrderID: topupData.AcquiringOrderID,
+				}, nil)
+				t.Logf("Pending top-up cleanup: acquiringOrderID=%s, response=%+v, error=%v",
+					topupData.AcquiringOrderID, canceled, cancelErr)
+			}
+		}()
 		topupURL := (&order.CreateOrderData{OrderAction: topupData.TopupAction}).FetchRedirectURL()
 		if topupURL == "" {
 			t.Fatalf("Top-up authorization URL is empty: acquiringOrderID=%s, action=%s",
 				topupData.AcquiringOrderID, topupData.TopupAction)
 		}
-		if !base.CompleteCheckout(t, topupURL, "subscription_topup_checkout", SubscriptionCheckoutCard()) {
-			t.Fatalf("Top-up checkout did not complete: acquiringOrderID=%s, currentURL=%s",
+		if !base.CompleteCheckout(t, topupURL, "subscription_topup_checkout", card) {
+			t.Logf("Top-up checkout did not show a terminal page; checking signed inquiry: acquiringOrderID=%s, currentURL=%s",
 				topupData.AcquiringOrderID, base.Page.URL())
 		}
 	}
@@ -294,6 +328,41 @@ func TestSubscriptionFlow_UpdateWithTopup(t *testing.T) {
 			topupData.AcquiringOrderID, finalOrderStatus, lastInquiry)
 	}
 
+	expectedAmount, _ := new(big.Rat).SetString(topupAmount)
+	for attempt := 0; attempt < 15; attempt++ {
+		inquiry, inquiryErr := testWaffo.Subscription().Inquiry(context.Background(), &subscription.InquirySubscriptionParams{
+			SubscriptionID: createData.SubscriptionID,
+			PaymentDetails: 1,
+		}, nil)
+		if inquiryErr != nil {
+			lastInquiry = inquiryErr.Error()
+		} else {
+			lastInquiry = fmt.Sprintf("code=%s, msg=%s, data=%+v", inquiry.GetCode(), inquiry.GetMessage(), inquiry.GetData())
+			if inquiry.IsSuccess() && inquiry.GetData() != nil {
+				for _, period := range inquiry.GetData().PaymentDetails {
+					if period.TopupDetails == nil {
+						continue
+					}
+					for _, item := range *period.TopupDetails {
+						if item.TopupRequest != topupRequest {
+							continue
+						}
+						actualAmount, valid := new(big.Rat).SetString(item.TopupAmount)
+						if item.AcquiringOrderID != topupData.AcquiringOrderID || !valid || actualAmount.Cmp(expectedAmount) != 0 {
+							t.Fatalf("Top-up inquiry details differ: subscriptionID=%s, topupRequest=%s, detail=%+v, response=%s",
+								createData.SubscriptionID, topupRequest, item, lastInquiry)
+						}
+						t.Logf("Top-up inquiry verified: subscriptionID=%s, topupRequest=%s, acquiringOrderID=%s",
+							createData.SubscriptionID, topupRequest, item.AcquiringOrderID)
+						return
+					}
+				}
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	t.Fatalf("Top-up missing from subscription inquiry: subscriptionID=%s, topupRequest=%s, acquiringOrderID=%s, response=%s",
+		createData.SubscriptionID, topupRequest, topupData.AcquiringOrderID, lastInquiry)
 }
 
 func TestSubscriptionFlow_QueryOnly(t *testing.T) {

@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README_CN.md @ commit ead2623 -->
+<!-- Synced with waffo-sdk/README_CN.md @ commit edb0a71 -->
 
 [English](README.md) | **中文**
 
@@ -1251,6 +1251,38 @@ func main() {
 }
 ```
 <!-- sdk-sync:end:%E5%BC%80%E6%94%BE%E4%B8%9A%E5%8A%A1%E5%8F%96%E5%80%BC%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BA%8B%E4%BB%B6 -->
+
+<!-- sdk-sync:start:%E6%94%AF%E4%BB%98%E4%B8%8E%E8%AE%A2%E9%98%85%20API%20%E5%AD%97%E6%AE%B5 -->
+### 支付与订阅 API 字段
+
+通过 SDK 的现有方法可以读写以下字段。响应字段按订单或订阅的实际情况返回。
+
+| 方法 | 字段 |
+|---|---|
+| 创建与查询订单 | `paymentInfo.receiptTemplateId`、`paymentInfo.setupFutureUsage`、`mppInfo`。订阅支付订单的查询响应中，`subscriptionInfo` 可包含 `merchantRequest` 和 `subscriptionEvent`。 |
+| 查询退款 | `merchantId`。 |
+| 创建订阅 | `paymentTokenData`、`userInfo.userBrowserIp`、`userInfo.userAgent`、`paymentInfo.userPaymentAccessToken`、`paymentInfo.receiptTemplateId`、`paymentInfo.payMethodCountry`。 |
+| 查询订阅、变更订阅与查询变更 | `paymentInfo.payMethodCountry`。变更请求还可以传 `paymentInfo.cashierLanguage`。订阅查询返回 `scheduledCancelAt`，传入 `paymentDetails: 1` 后，每期明细可包含 `topupDetails` 和 `repaymentDetails`。 |
+| 取消订阅 | 请求与响应中的 `scheduledCancelAt`。 |
+| 查询支付方式配置 | `payMethodDetails[].userCurrency`。 |
+
+示例使用已初始化的客户端，以及一笔订阅支付订单的收单订单号。`subscriptionEvent` 的已知值包括 `PERIOD_CHARGE` 和 `USER_ADD_PAYMENT_METHOD`。
+
+```go
+result, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
+    AcquiringOrderID: "acquiring_order_id",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if !result.IsSuccess() {
+    log.Fatal(result.GetCode())
+}
+if data := result.GetData(); data != nil && data.SubscriptionInfo != nil {
+    fmt.Println(data.SubscriptionInfo.MerchantRequest, data.SubscriptionInfo.SubscriptionEvent)
+}
+```
+<!-- sdk-sync:end:%E6%94%AF%E4%BB%98%E4%B8%8E%E8%AE%A2%E9%98%85%20API%20%E5%AD%97%E6%AE%B5 -->
 
 ## 支持
 

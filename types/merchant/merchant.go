@@ -45,6 +45,7 @@ type PayMethodDetail struct {
 	OrderAmountMin           string                 `json:"orderAmountMin,omitempty"`
 	OrderAmountMax           string                 `json:"orderAmountMax,omitempty"`
 	RefundAllowed            *int                   `json:"refundAllowed,omitempty"`
+	UserCurrency             string                 `json:"userCurrency,omitempty"`
 }
 
 // FixedMaintenanceRule represents a fixed maintenance rule.

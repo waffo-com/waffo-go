@@ -1,6 +1,6 @@
 # Waffo Go SDK
 
-<!-- Synced with waffo-sdk/README.md @ commit ead2623 -->
+<!-- Synced with waffo-sdk/README.md @ commit edb0a71 -->
 
 **English** | [中文](README_CN.md)
 
@@ -1297,6 +1297,38 @@ if resp.IsSuccess() {
 }
 ```
 <!-- sdk-sync:end:Update%20Subscription -->
+
+<!-- sdk-sync:start:Payment%20and%20Subscription%20API%20Fields -->
+### Payment and Subscription API Fields
+
+The SDK exposes these fields through the existing methods. Response fields are returned when applicable to the order or subscription.
+
+| Method | Fields |
+|---|---|
+| Order create and inquiry | `paymentInfo.receiptTemplateId`, `paymentInfo.setupFutureUsage`, and `mppInfo`. Inquiry also returns `subscriptionInfo` with `merchantRequest` and `subscriptionEvent`. |
+| Refund inquiry | `merchantId`. |
+| Subscription create | `paymentTokenData`, `userInfo.userBrowserIp`, `userInfo.userAgent`, `paymentInfo.userPaymentAccessToken`, `paymentInfo.receiptTemplateId`, and `paymentInfo.payMethodCountry`. |
+| Subscription inquiry, change, and change inquiry | `paymentInfo.payMethodCountry`. A change request can also carry `paymentInfo.cashierLanguage`. Inquiry returns `scheduledCancelAt` and, with `paymentDetails: 1`, can include `topupDetails` and `repaymentDetails` for each period. |
+| Subscription cancel | `scheduledCancelAt` in the request and response. |
+| Pay method config inquiry | `payMethodDetails[].userCurrency`. |
+
+The example uses an initialized client and a subscription payment's acquiring order ID. Examples of `subscriptionEvent` include `PERIOD_CHARGE` and `USER_ADD_PAYMENT_METHOD`.
+
+```go
+result, err := client.Order().Inquiry(ctx, &order.InquiryOrderParams{
+    AcquiringOrderID: "acquiring_order_id",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+if !result.IsSuccess() {
+    log.Fatal(result.GetCode())
+}
+if data := result.GetData(); data != nil && data.SubscriptionInfo != nil {
+    fmt.Println(data.SubscriptionInfo.MerchantRequest, data.SubscriptionInfo.SubscriptionEvent)
+}
+```
+<!-- sdk-sync:end:Payment%20and%20Subscription%20API%20Fields -->
 
 ## Support
 
